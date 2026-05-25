@@ -4,7 +4,7 @@
 
 Tired of the endless window-switching and click-marathons in standard SAP `SE11`? This tool is a modern, high-productivity dictionary viewer designed right inside the SAP GUI using a clean, native ALV layout.
 
-Analyze structures, text tables, active database indices, and search helps for an UNLIMITED number of DDIC objects simultaneously. Fully optimized for modern SAP S/4HANA environments (e.g., complex objects like Business Partner `BUT000`).
+Analyze structures, text tables, active database indices, and search helps for an UNLIMITED number of DDIC objects simultaneously. Fully optimized for modern SAP S/4HANA environments (e.g., complex objects like Central Business Partner `BUT000`).
 
 ---
 
@@ -13,14 +13,15 @@ Analyze structures, text tables, active database indices, and search helps for a
 
 | Feature                                                             | FREE Version (Open Source) | PRO Version (Commercial) |
 | :---| :---: | :---: |
-| **Unlimited Bulk Query** (Multiple tables at once)                  | ✅                         | ✅                      |
-| **ALV Interface** (Modern layout)                                   | ✅                         | ✅                      |
-| **Smart Filtering** (By category, delivery class, Z/Y objects)      | ✅                         | ✅                      |
-| **Wildcard Text Search** (Utilizing ABAP `CP` operator on `DD02T`)  | ✅                         | ✅                      |
-| **Smart Multi-Language Support** (Language-independent)             | ✅                         | ✅                      |
-| **Check Table Analyzer** (Foreign-key mapping)                      | ❌                         | ✅                      |
-| **Active DB Indices & Search Helps** (Performance tuning)           | ❌                         | ✅                      |
-| **Technical Support & 12 Months Updates**                           | ❌                         | ✅                      |
+| 🎯**Unlimited Bulk Query** (Multiple tables at once)                  | ✅                         | ✅                      |
+| 🎯**ALV Interface** (Modern layout)                                   | ✅                         | ✅                      |
+| 🎯**Smart Filtering** (By category, delivery class, Z/Y objects)      | ✅                         | ✅                      |
+| 🎯**Wildcard Text Search** (Utilizing ABAP `CP` operator on `DD02T`)  | ✅                         | ✅                      |
+| 🎯**Smart Multi-Language Support** (Language-independent)             | ✅                         | ✅                      |
+| 💎**Check Table Analyzer** (Foreign-key mapping)                      | ❌                         | ✅                      | 
+| 💎**Active DB Indices & Search Helps** (Performance tuning)           | ❌                         | ✅                      |
+| 💎**Fiori-Style HTML Export** *(Coming soon / Free Upgrade)*          | ❌                         | ✅                      |
+| 💎**Technical Support & 12 Months Updates**                           | ❌                         | ✅                      |
 
 ---
 
@@ -51,7 +52,7 @@ The **PRO Version** unlocks deep architectural insights and database performance
 ### ⏱️ 1-HOUR FLASH SALE ON WEDNESDAY (MAY 27)
 To celebrate the global rollout, I am running an exclusive **60-minute Flash Sale this Wednesday**! You can grab the full PRO Single License for just **€9.99** instead of €99.
 
-* 🌅 **Wave 1 (Europe):** 10:00 – 11:00 CEST
+* 🌅 **Wave 1 (Europe / Asien):** 10:00 – 11:00 CEST
 * 🏙️ **Wave 2 (Americas / Global):** 16:00 - 17:00 CEST (New Yourk Time: 10:00 – 11:00)
 
 👉 **[LINK TO LEMON SQUEEZY STORE WILL BE PLACED HERE ON WEDNESDAY]**
