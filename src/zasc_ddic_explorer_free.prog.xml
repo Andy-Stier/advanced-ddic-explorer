@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<asx:abap xmlns:asx="http://sap.com" version="1.0">
+  <asx:values>
+    <PROG>
+      <NAME>ZASC_DDIC_EXPLORER_FREE</NAME>
+      <DBAPL>S</DBAPL>
+      <SUBC>1</SUBC>
+      <FIXPT>X</FIXPT>
+      <LDBNAME>SDB</LDBNAME>
+      <UCCHECK>X</UCCHECK>
+    </PROG>
+  </asx:values>
+</asx:abap>
