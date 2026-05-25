@@ -1,34 +1,34 @@
 *&---------------------------------------------------------------------*
 *& Report ZASC_DDIC_EXPLORER_FREE
 *&---------------------------------------------------------------------*
-*& Advanced DDIC Explorer
+*& Advanced DDIC Explorer Free
 *&---------------------------------------------------------------------*
 REPORT zasc_ddic_explorer_free.
 
 * See https://github.com/Andy-Stier/advanced-ddic-explorer
 
 ********************************************************************************
-*MIT License
+* MIT License
 *
-*Copyright (c) 2026 Andy-Stier
+* Copyright (c) 2026 Andy-Stier
 *
-*Permission is hereby granted, free of charge, to any person obtaining a copy
-*of this software and associated documentation files (the "Software"), to deal
-*in the Software without restriction, including without limitation the rights
-*to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-*copies of the Software, and to permit persons to whom the Software is
-*furnished to do so, subject to the following conditions:
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
 *
-*The above copyright notice and this permission notice shall be included in all
-*copies or substantial portions of the Software.
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
 *
-*THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-*IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-*FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-*AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-*LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-*OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-*SOFTWARE.
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* SOFTWARE.
 ********************************************************************************
 
 TABLES sscrfields.
@@ -88,7 +88,8 @@ AT SELECTION-SCREEN ON EXIT-COMMAND.
 START-OF-SELECTION.
   lcl_gui_handler=>on_start( ).
 
-  CLASS lcl_ddic_table      DEFINITION DEFERRED.
+
+CLASS lcl_ddic_table      DEFINITION DEFERRED.
 CLASS lcl_ddic_table_base DEFINITION ABSTRACT.
   PUBLIC SECTION.
     TYPES:
@@ -153,17 +154,17 @@ CLASS lcl_ddic_table DEFINITION INHERITING FROM lcl_ddic_table_base CREATE PRIVA
       type_field_tab TYPE STANDARD TABLE OF type_field WITH DEFAULT KEY.
 
     CLASS-METHODS:
-      create_instance     IMPORTING i_tabname TYPE dd02l-tabname i_langu TYPE sy-langu
-                          RETURNING VALUE(ro_instance) TYPE REF TO lcl_ddic_table.
+      create_instance   IMPORTING i_tabname TYPE dd02l-tabname i_langu TYPE sy-langu
+                        RETURNING VALUE(ro_instance) TYPE REF TO lcl_ddic_table.
     METHODS:
-      constructor            IMPORTING i_tabname TYPE dd02l-tabname i_langu TYPE sy-langu,
+      constructor       IMPORTING i_tabname TYPE dd02l-tabname i_langu TYPE sy-langu,
       load_metadata,
-      get_header             RETURNING VALUE(r_result)  TYPE type_header,
-      get_devclass           RETURNING VALUE(r_result)  TYPE type_devclass,
-      get_settings           RETURNING VALUE(r_result)  TYPE type_settings,
-      get_fields             IMPORTING i_with_includes  TYPE abap_bool DEFAULT abap_true
-                             RETURNING VALUE(r_results) TYPE type_field_tab,
-      get_texttable_ref      RETURNING VALUE(r_result)  TYPE REF TO lcl_ddic_table.
+      get_header        RETURNING VALUE(r_result)  TYPE type_header,
+      get_devclass      RETURNING VALUE(r_result)  TYPE type_devclass,
+      get_settings      RETURNING VALUE(r_result)  TYPE type_settings,
+      get_fields        IMPORTING i_with_includes  TYPE abap_bool DEFAULT abap_true
+                        RETURNING VALUE(r_results) TYPE type_field_tab,
+      get_texttable_ref RETURNING VALUE(r_result)  TYPE REF TO lcl_ddic_table.
 
   PRIVATE SECTION.
     METHODS:
@@ -246,6 +247,7 @@ CLASS lcl_ddic_table IMPLEMENTATION.
       IF ( sy-subrc = 0 ).
         mv_loaded = abap_true.
 
+        " Re-read devclass since load_metadata overwrites the header
         read_devclass( ).
 
         " Search texttable
@@ -394,12 +396,12 @@ ENDCLASS.
 CLASS lcl_filter_check_button DEFINITION CREATE PUBLIC INHERITING FROM lcl_filter_button.
   PUBLIC SECTION.
     METHODS:
-      constructor    IMPORTING parent      TYPE REF TO cl_gui_toolbar
-                               fcode       TYPE ui_func
-                               text        TYPE text40
-                               quickinfo   TYPE iconquick
-                               is_disabled TYPE abap_bool OPTIONAL
-                               is_checked  TYPE abap_bool.
+      constructor IMPORTING parent      TYPE REF TO cl_gui_toolbar
+                            fcode       TYPE ui_func
+                            text        TYPE text40
+                            quickinfo   TYPE iconquick
+                            is_disabled TYPE abap_bool OPTIONAL
+                            is_checked  TYPE abap_bool.
 ENDCLASS.
 
 CLASS lcl_filter_check_button IMPLEMENTATION.
