@@ -25,14 +25,22 @@ Analyze structures, text tables, active database indices, and search helps for a
 
 ---
 
-## ⚡ Installation (Single-File Report)
+## ⚡ Installation & Deployment
 
-Since this tool is built as a single-file ABAP report, deployment takes less than 60 seconds:
+You can install the **Advanced DDIC Explorer** either as a classic single-file report or automate it completely via **abapGit**.
 
-1. Open your SAP system and go to transaction `SE38` or `SE80` (or use ABAP Development Tools in Eclipse).
-2. Create a new executable program (e.g., `ZASC_DDIC_EXPLORER_FREE`).
-3. Open the file `zasc_ddic_explorer_free.abap` from this repository, copy the entire source code.
-4. Paste the code into your SAP report, activate it (`F3` / `Ctrl+F3`), and run it (`F8`).
+### Option A: Automated Installation via abapGit (Recommended)
+1. Open the **abapGit** developer tool in your SAP system.
+2. Click on **+ Online** to create a new online repository.
+3. Paste the URL of this GitHub repository: `https://github.com/Andy-Stier/advanced-ddic-explorer`
+4. Specify your target package (e.g., `$Z_DDIC_EXPLORER`) and folder logic.
+5. Click **Clone Repository**, then select **Pull** to automatically deploy and activate the code in your system.
+
+### Option B: Classic Single-File Copy-Paste
+1. Open your SAP system and go to transaction `SE38` or `SE80`.
+2. Create a new executable program (e.g., `Z_ADVANCED_DDIC_EXPLORER`).
+3. Open the file `src/zasc_ddic_explorer_free.prog.abap` from this repository and copy the entire source code.
+4. Paste the code into your SAP report, activate it (`Ctrl+F3`), and run it (`F8`).
 
 *Baseline Compatibility: 100% compatible down to ABAP 7.40 and fully S/4HANA-ready!*
 
