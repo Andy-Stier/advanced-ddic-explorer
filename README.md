@@ -1,4 +1,6 @@
-# 🚀 Advanced DDIC Viewer for SAP (ABAP 7.40+)
+# 🚀 Advanced DDIC Explorer for SAP (ABAP 7.40+)
+![Advanced DDIC Explorer User Interface](screenshot.png)
+*The Image shows the PRO version user interface with advanced relationship analytics (check tables, indices, search helps)*
 
 Tired of the endless window-switching and click-marathons in standard SAP `SE11`? This tool is a modern, high-productivity dictionary viewer designed right inside the SAP GUI using a clean, native ALV layout.
 
