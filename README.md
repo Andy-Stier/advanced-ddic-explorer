@@ -32,7 +32,7 @@ You can install the **Advanced DDIC Explorer** either as a classic single-file r
 ### Option A: Automated Installation via abapGit (Recommended)
 1. Open the **abapGit** developer tool in your SAP system.
 2. Click on **+ Online** to create a new online repository.
-3. Paste the URL of this GitHub repository: `https://github.com/Andy-Stier/advanced-ddic-explorer`
+3. Paste the URL of this GitHub repository: `https://github.com/Andy-Stier/advanced-ddic-explorer.git`
 4. Specify your target package (e.g., `$Z_DDIC_EXPLORER`) and folder logic.
 5. Click **Clone Repository**, then select **Pull** to automatically deploy and activate the code in your system.
 
