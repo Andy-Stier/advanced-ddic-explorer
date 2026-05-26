@@ -1,4 +1,14 @@
 # 🚀 Advanced DDIC Explorer for SAP (ABAP 7.40+)
+
+### 📢 COMMUNITY NOTICE: OPEN BETA & EXTENDED TESTING PHASE
+The Free Open-Source Version is now officially **LIVE and ready for testing**! To ensure the absolute highest stability and performance down to ABAP 7.40, the commercial PRO Launch and the upcoming €9.99 Flash Sale have been intentionally shifted.
+
+We want the SAP community to test this tool thoroughly in your sandbox and development systems without any pressure.
+* Found a bug or compatibility issue on your specific S/4HANA release? Open a **GitHub Issue**!
+* Have ideas or general feedback? Join the **GitHub Discussions**!
+
+*The priority whitelist for everyone who commented "FLASH" on LinkedIn remains 100% active and locked in.* 😉
+
 ![Advanced DDIC Explorer User Interface](screenshot.png)
 *The Image shows the PRO version user interface with advanced relationship analytics (check tables, indices, search helps)*
 
