@@ -62,20 +62,15 @@ The **PRO Version** unlocks deep architectural insights and database performance
 
 🔥 **BONUS ROADMAP VALUE:** The upcoming **Fiori-Style HTML Export upgrade** (launching in 1–3 months) is fully included in your 12-month update window. Buy today, and receive the HTML Export feature as a **FREE automatic update** later!
 
+### 🎟️ Upcoming PRO Launch Pricing (Soon)
+The commercial store is currently closed while the community thoroughly tests the Free Version. Once the store opens, the following tiers will apply:
+
 | Licence | Price | Benefit |
 | :--- | ---: | :---|
 |**Pro Single User:**| €99.00 | - |
 |**Pro Small Team** (Up to 5 developers)| €399.00  | *Get 5 licences for the price of 4!*|
 |**Pro Large Team** (Up to 10 developers)| €699.00  | *Save nearly 30%* |
 |**Enterprise Site License:**| Custom pricing | *up for negotiable* |
-
-### ⏱️ 1-HOUR FLASH SALE ON WEDNESDAY (MAY 27)
-To celebrate the global rollout, I am running an exclusive **60-minute Flash Sale this Wednesday**! You can grab the full PRO Single License for just **€9.99** instead of €99.
-
-* 🌅 **Wave 1 (Europe / Asien):** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**10:00 - 11:00** CEST
-* 🏙️ **Wave 2 (Americas / Global):** **16:00 - 17:00** CEST (<ins>New York Time: **10:00 - 11:00**</ins>)
-
-👉 **[LINK TO LEMON SQUEEZY STORE WILL BE PLACED HERE ON WEDNESDAY]**
 
 ---
 
