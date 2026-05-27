@@ -2,7 +2,13 @@
     "global": {
     "files": "/src/**/*.*"
   },
-    "dependencies": [],
+    "dependencies": [
+        {
+            "url": "https://github.com",
+            "folder": "/deps",
+            "files": "/src/**/*.*"
+        }
+    ],
     "syntax": {
         "version": "v740sp08",
         "errorNamespace": "^(Z|Y)"
