@@ -4,13 +4,14 @@
   },
     "dependencies": [],
     "syntax": {
-    "version": "v740sp08",
-    "errorNamespace": "^(Z|Y)"
+        "version": "v740sp08",
+        "errorNamespace": "^(Z|Y)"
   },
     "rules": {
-    "obsolete_statement": false,
-    "check_syntax": true,
-    "parser_error": true,
-    "unknown_types": true
+        "obsolete_statement": true,
+        "check_syntax": true,
+        "parser_error": true,
+        "unknown_types": false,
+        "unused_variables": true
   }
 }
