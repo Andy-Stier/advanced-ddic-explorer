@@ -4,7 +4,7 @@
   },
     "dependencies": [],
     "syntax": {
-    "version": "v740",
+    "version": "v740sp02",
     "errorNamespace": "^(Z|Y)"
   },
     "rules": {
