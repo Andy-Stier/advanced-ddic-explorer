@@ -8,10 +8,9 @@
     "errorNamespace": "^(Z|Y)"
   },
     "rules": {
-    "downport": true,
-    "obsolete_statement": true,
+    "obsolete_statement": false,
+    "check_syntax": tue,
     "parser_error": true,
-    "superclass_final": true,
     "unknown_types": true
   }
 }
