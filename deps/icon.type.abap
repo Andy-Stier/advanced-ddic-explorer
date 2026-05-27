@@ -1,3 +1,4 @@
+TYPE-POOL ICON.
 CONSTANTS:
 ICON_DUMMY                    TYPE ICON_L2 VALUE  '@00@', "  Placeholder icon
 ICON_CHECKED                  TYPE ICON_L2 VALUE  '@01@', "  Checked; Okay
