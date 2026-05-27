@@ -1,0 +1,21 @@
+TYPE-POOL CNTB .
+CONSTANTS: CNTB_BTYPE_FIRST         TYPE I VALUE 0,
+           CNTB_BTYPE_BUTTON        TYPE I VALUE 0,
+           CNTB_BTYPE_DROPDOWN      TYPE I VALUE 1,
+           CNTB_BTYPE_MENU          TYPE I VALUE 2,
+           CNTB_BTYPE_SEP           TYPE I VALUE 3,
+           CNTB_BTYPE_GROUP         TYPE I VALUE 4,
+           CNTB_BTYPE_CHECK         TYPE I VALUE 5,
+*          CNTB_BTYPE_MENUITEM      TYPE I VALUE 6,
+           CNTB_BTYPE_OUTLOOKBUTTON TYPE I VALUE 7,
+           CNTB_BTYPE_LAST          TYPE I VALUE 7,
+           CNTB_ID_BUTTON_CLICK     TYPE I VALUE 1,
+           CNTB_ID_DROPDOWN         TYPE I VALUE 2,
+           CNTB_ID_DROPMENU         TYPE I VALUE 3,
+
+*          control styles
+           CNTB_STYLE_WRAPABLE      TYPE I VALUE 1.
+*           CNTB_STYLE_V_PAGER       TYPE I VALUE 2,
+
+
+TYPES:     CNTB_UNIQUE_ID(6)        TYPE N.
