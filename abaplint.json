@@ -9,7 +9,7 @@
   },
     "rules": {
     "obsolete_statement": false,
-    "check_syntax": tue,
+    "check_syntax": true,
     "parser_error": true,
     "unknown_types": true
   }
