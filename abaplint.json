@@ -4,7 +4,7 @@
   },
     "dependencies": [
         {
-            "url": "https://github.com",
+            "url": "local",
             "folder": "/deps",
             "files": "/src/**/*.*"
         }
