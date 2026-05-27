@@ -6,7 +6,7 @@
         {
             "url": "local",
             "folder": "/deps",
-            "files": "/src/**/*.*"
+            "files": "/**/*.*"
         }
     ],
     "syntax": {
