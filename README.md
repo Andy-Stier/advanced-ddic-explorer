@@ -1,7 +1,7 @@
 # 🚀 Advanced DDIC Explorer for SAP (ABAP 7.40+)
 
 ### 📢 COMMUNITY NOTICE: OPEN BETA & EXTENDED TESTING PHASE
-The Free Open-Source Version is now officially **LIVE and ready for testing**! To ensure the absolute highest stability and performance down to ABAP 7.40, the commercial PRO Launch and the upcoming €9.99 Flash Sale have been intentionally shifted.
+The Free Open-Source Version is now officially **LIVE and ready for testing**! To ensure the absolute highest stability and performance down to ABAP 7.40, the commercial PRO Launch and the upcoming €9.99 Flash Sale have been **intentionally shifted**.
 
 We want the SAP community to test this tool thoroughly in your sandbox and development systems without any pressure.
 * Found a bug or compatibility issue on your specific S/4HANA release? Open a **GitHub Issue**!
@@ -11,6 +11,9 @@ We want the SAP community to test this tool thoroughly in your sandbox and devel
 
 ![Advanced DDIC Explorer User Interface](screenshot.png)
 *The Image shows the PRO version user interface with advanced relationship analytics (check tables, indices, search helps)*
+
+![Advanced DDIC Explorer User Interface](ddic_documentation.png)
+*The export function (comes soon) is only available in the the PRO version*
 
 Tired of the endless window-switching and click-marathons in standard SAP `SE11`? This tool is a modern, high-productivity dictionary viewer designed right inside the SAP GUI using a clean, native ALV layout.
 
