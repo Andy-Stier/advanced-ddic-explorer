@@ -1,0 +1,17 @@
+{
+    "global": {
+    "files": "/src/**/*.*"
+  },
+    "dependencies": [],
+    "syntax": {
+    "version": "v740sp02",
+    "errorNamespace": "^(Z|Y)"
+  },
+    "rules": {
+    "downport": true,
+    "obsolete_statement": true,
+    "parser_error": true,
+    "superclass_final": true,
+    "unknown_types": true
+  }
+}
