@@ -1,7 +1,7 @@
 *&---------------------------------------------------------------------*
 *& Report ZASC_DDIC_EXPLORER_FREE
 *&---------------------------------------------------------------------*
-*& Advanced DDIC Explorer Free
+*& Advanced DDIC Explorer (Free)
 *&---------------------------------------------------------------------*
 REPORT zasc_ddic_explorer_free.
 
@@ -32,8 +32,7 @@ REPORT zasc_ddic_explorer_free.
 ********************************************************************************
 
 TABLES sscrfields.
-TYPE-POOLS icon.
-INCLUDE  <ctldef>.
+INCLUDE <icon>.
 
 CLASS lcl_app         DEFINITION DEFERRED.
 CLASS lcl_view_base   DEFINITION DEFERRED.
@@ -1371,7 +1370,7 @@ CLASS lcl_table_bar_control IMPLEMENTATION.
     ENDIF.
 **********************************************************************
 
-    IF line_exists( visible_ids[ table_line = active_id ] ).
+    IF ( line_exists( visible_ids[ table_line = active_id ] ) ).
       mo_tabstrip->set_active( id = active_id ).
     ELSEIF ( visible_ids IS NOT INITIAL ).
       mo_tabstrip->set_active( id = visible_ids[ 1 ] ).
