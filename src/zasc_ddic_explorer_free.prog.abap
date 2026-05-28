@@ -66,8 +66,8 @@ CLASS lcl_gui_handler DEFINITION ABSTRACT.
 ENDCLASS.
 
 PARAMETERS:
-  p_table TYPE tabname  NO-DISPLAY,
-  p_langu TYPE sy-langu NO-DISPLAY DEFAULT sy-langu.
+  p_table TYPE tabname  NO-DISPLAY,                       " for the self call - future
+  p_langu TYPE sy-langu NO-DISPLAY DEFAULT sy-langu.      " for the self call - future
 
 SELECTION-SCREEN BEGIN OF SCREEN 1001 TITLE title1.
 SELECTION-SCREEN END OF SCREEN 1001.
@@ -227,7 +227,6 @@ CLASS lcl_ddic_table IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD load_metadata.
-    DATA ls_checktable_header LIKE m_table_data-header.
     IF ( mv_loaded = abap_false ).
       CALL FUNCTION 'DDIF_TABL_GET'
         EXPORTING
@@ -555,8 +554,7 @@ CLASS lcl_filter_toolbar DEFINITION CREATE PUBLIC.
       get_active_button    RETURNING VALUE(ro_button) TYPE REF TO lcl_filter_button,
       get_button           IMPORTING fcode            TYPE ui_func
                            RETURNING VALUE(ro_button) TYPE REF TO lcl_filter_button,
-      set_button_active    IMPORTING fcode  TYPE ui_func
-                                     active TYPE abap_bool DEFAULT abap_true,
+      set_button_active    IMPORTING fcode  TYPE ui_func,
       on_function_selected FOR EVENT function_selected OF cl_gui_toolbar IMPORTING fcode sender,
       on_dropdown_clicked  FOR EVENT dropdown_clicked  OF cl_gui_toolbar IMPORTING fcode posx posy sender.
 
@@ -940,16 +938,6 @@ CLASS lcl_table_control DEFINITION INHERITING FROM lcl_control.
       lif_table_tree_control.
 
     CONSTANTS:
-      BEGIN OF con_container_name,
-        root_container TYPE string VALUE 'ROOT',
-      END OF con_container_name,
-
-      BEGIN OF con_control_name,
-        toolbar_filter    TYPE string VALUE 'TABLE_FILTER',
-        input_search      TYPE string VALUE 'TABLE_SEARCH',
-        input_filter_name TYPE string VALUE 'TABLE_FILTER_NAME',
-      END OF con_control_name,
-
       BEGIN OF con_fcode,
         select_language    TYPE ui_func VALUE 'LANGUAGE',
         filter_defaults    TYPE ui_func VALUE 'DEFAULTS',
@@ -1473,7 +1461,7 @@ CLASS lcl_ddic_model IMPLEMENTATION.
 
   METHOD check_tcode_exists.
     SELECT SINGLE tcode FROM tstc WHERE tcode = @i_tcode INTO @DATA(tcode).
-    IF ( sy-subrc = 0 ).
+    IF ( tcode IS NOT INITIAL ).
       r_exists = abap_true.
     ENDIF.
   ENDMETHOD.
@@ -2253,10 +2241,10 @@ CLASS lcl_view_base DEFINITION ABSTRACT FRIENDS lcl_controller_base.
       root_container TYPE REF TO cl_gui_container.
 
     METHODS:
-      destroy        ABSTRACT,
-      create_gos     FINAL IMPORTING i_name       TYPE string
-                                     i_parent     TYPE REF TO cl_gui_container
-                           RETURNING VALUE(r_gos) TYPE REF TO cl_gui_gos_container,
+      destroy         ABSTRACT,
+      create_gos      FINAL IMPORTING i_name            TYPE string
+                                      i_parent          TYPE REF TO cl_gui_container
+                            RETURNING VALUE(r_gos)      TYPE REF TO cl_gui_gos_container,
       create_splitter FINAL IMPORTING i_name            TYPE string OPTIONAL
                                       i_parent          TYPE REF TO cl_gui_container
                                       i_rows            TYPE i
@@ -2324,11 +2312,6 @@ CLASS lcl_start_view DEFINITION INHERITING FROM lcl_view_base.
 
   PRIVATE SECTION.
     CONSTANTS:
-      BEGIN OF con_view_container_name,
-        root_view TYPE string VALUE 'VIEW_CONTAINER_ROOT',
-        data_view TYPE string VALUE 'VIEW_CONTAINER_DATA',
-      END OF con_view_container_name,
-
       BEGIN OF enum_pos_at,
         central TYPE i VALUE 0,
         left    TYPE i VALUE 1,
@@ -2427,7 +2410,7 @@ CLASS lcl_app DEFINITION ABSTRACT FRIENDS lcl_gui_handler.
   PROTECTED SECTION.
     DATA:
       mo_view       TYPE REF TO lcl_view_base,
-      mo_controller TYPE REF TO lcl_controller_base.
+      mo_controller TYPE REF TO lcl_controller_base.  " not used - for the future
 ENDCLASS.
 
 CLASS lcl_start_app DEFINITION INHERITING FROM lcl_app.
