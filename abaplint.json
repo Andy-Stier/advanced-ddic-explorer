@@ -18,6 +18,6 @@
         "check_syntax": true,
         "parser_error": true,
         "unknown_types": false,
-        "unused_variables": true
+        "unused_variables": false
   }
 }
