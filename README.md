@@ -16,6 +16,9 @@ We want the SAP community to test this tool thoroughly in your sandbox and devel
 ![Advanced DDIC Explorer User Interface](export_single.png)
 *The export function (comes soon) is only available in the PRO version*
 
+![Advanced DDIC Explorer User Interface](Summary_Rating_von_Claude.png)
+*Claude - PRO version - Qualified Technical Assessment 2016/06/01*
+
 Tired of the endless window-switching and click-marathons in standard SAP `SE11`? This tool is a modern, high-productivity dictionary viewer designed right inside the SAP GUI using a clean, native ALV layout.
 
 Analyze structures, text tables, active database indices, and search helps for an UNLIMITED number of DDIC objects simultaneously. Fully optimized for modern SAP S/4HANA environments (e.g., complex objects like Central Business Partner `BUT000`).
