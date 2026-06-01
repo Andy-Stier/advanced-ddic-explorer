@@ -1584,10 +1584,11 @@ CLASS lcl_table_control IMPLEMENTATION.
       columns    = 1
       no_autodef_progid_dynnr = abap_true ).
 
+    " Place for one button: 35px height
     splitter->set_row_mode( mode = cl_gui_splitter_container=>mode_absolute ).
-    splitter->set_row_height( id = 1 height = 60 ).
-    splitter->set_row_height( id = 2 height = 153 ).
-    splitter->set_row_height( id = 3 height = 40 ).
+    splitter->set_row_height( id = 1 height = 70 ). " place for two buttons
+    splitter->set_row_height( id = 2 height = 175 )." place for five buttons
+    splitter->set_row_height( id = 3 height = 50 ). " place for input field
 
     DO 3 TIMES.
       splitter->set_row_sash(
