@@ -1441,8 +1441,16 @@ CLASS lcl_table_bar_control IMPLEMENTATION.
 
     CLEAR mt_header.
     IF ( tabname IS NOT INITIAL ).
-      lo_ddic_table ?= lcl_ddic_base=>get_instance(
-        i_objname = tabname i_objtype = lcl_ddic_table=>con_objtype i_langu = language )-ref.
+      TRY.
+          lo_ddic_table ?= lcl_ddic_base=>get_instance(
+            i_objname = tabname i_objtype = lcl_ddic_table=>con_objtype i_langu = language )-ref.
+
+          IF ( lo_ddic_table IS INITIAL ).
+            MESSAGE 'Technical Error "No Instance Created" in lCL_TABLE_BAR_CONTROL=>ON_REFRESH_CONTENT' TYPE 'E'.
+          ENDIF.
+        CATCH cx_sy_move_cast_error.
+          MESSAGE 'Technical Error CX_SY_MOVE_CAST_ERROR in lCL_TABLE_BAR_CONTROL=>ON_REFRESH_CONTENT' TYPE 'E'.
+      ENDTRY.
 
       lo_ddic_table->load_metadata( ).
 
