@@ -87,26 +87,30 @@ AT SELECTION-SCREEN ON EXIT-COMMAND.
 START-OF-SELECTION.
   lcl_gui_handler=>on_start( ).
 
-
-CLASS lcl_ddic_table      DEFINITION DEFERRED.
-CLASS lcl_ddic_table_base DEFINITION ABSTRACT.
+CLASS lcl_ddic_base DEFINITION ABSTRACT.
   PUBLIC SECTION.
     TYPES:
+      type_object_name TYPE c LENGTH 30,
+      type_object_type TYPE trobjtype,
+      type_language    TYPE syst-langu,
       BEGIN OF type_instance_ident,
-        tabname TYPE tabname,
-        langu   TYPE sy-langu,
-        ref     TYPE REF TO lcl_ddic_table,
+        objname TYPE type_object_name,
+        objtype TYPE type_object_type,   " 'TABL', 'DOMA', 'DTEL' etc.
+        langu   TYPE type_language,
+        ref     TYPE REF TO lcl_ddic_base,
       END OF type_instance_ident,
-      type_instance_ident_tab TYPE STANDARD TABLE OF type_instance_ident WITH UNIQUE SORTED KEY key COMPONENTS tabname langu,
-      type_tabname_range      TYPE RANGE OF dd02l-tabname,
-      type_tabname_tab        TYPE STANDARD TABLE OF dd02l-tabname WITH DEFAULT KEY.
+      type_instance_ident_tab TYPE STANDARD TABLE OF type_instance_ident
+                              WITH UNIQUE SORTED KEY key COMPONENTS objname objtype langu,
+      type_objname_range      TYPE RANGE OF type_object_name,
+      type_objname_tab        TYPE STANDARD TABLE OF type_object_name WITH DEFAULT KEY.
 
     CLASS-METHODS:
-      get_instance      IMPORTING i_tabname TYPE tabname i_langu TYPE sy-langu RETURNING VALUE(r_result) TYPE type_instance_ident.
+      get_instance IMPORTING i_objname TYPE type_object_name
+                             i_objtype TYPE type_object_type
+                             i_langu TYPE type_language RETURNING VALUE(r_result) TYPE type_instance_ident.
 
-    METHODS constructor
-      IMPORTING
-        i_langu TYPE sy-langu.
+    METHODS constructor IMPORTING i_langu   TYPE type_language
+                                  i_objtype TYPE type_object_type.
 
   PROTECTED SECTION.
     CLASS-DATA:
@@ -116,28 +120,66 @@ CLASS lcl_ddic_table_base DEFINITION ABSTRACT.
       add_instance IMPORTING i_instance_ident TYPE type_instance_ident.
 
     DATA:
-      mv_langu  TYPE sy-langu,
-      mv_loaded TYPE abap_bool.
+      mv_objtype TYPE type_object_type,
+      mv_langu   TYPE type_language,
+      mv_loaded  TYPE abap_bool.
 ENDCLASS.
 
-CLASS lcl_ddic_table_base IMPLEMENTATION.
+CLASS lcl_ddic_base IMPLEMENTATION.
   METHOD add_instance.
-    READ TABLE instances TRANSPORTING NO FIELDS WITH TABLE KEY tabname = i_instance_ident-tabname langu = i_instance_ident-langu.
+    READ TABLE instances TRANSPORTING NO FIELDS
+      WITH TABLE KEY objname = i_instance_ident-objname objtype = i_instance_ident-objtype langu = i_instance_ident-langu.
     IF ( sy-subrc <> 0 ).
       INSERT i_instance_ident INTO TABLE instances.
     ENDIF.
   ENDMETHOD.
 
   METHOD constructor.
-    mv_langu = COND #( WHEN i_langu IS INITIAL THEN sy-langu ELSE i_langu ).
+    mv_objtype = i_objtype.
+    mv_langu   = COND #( WHEN i_langu IS INITIAL THEN sy-langu ELSE i_langu ).
   ENDMETHOD.
 
   METHOD get_instance.
-    READ TABLE instances INTO r_result WITH TABLE KEY tabname = i_tabname langu = i_langu.
+    READ TABLE instances INTO r_result WITH TABLE KEY objname = i_objname objtype = i_objtype langu = i_langu.
   ENDMETHOD.
 ENDCLASS.
 
-CLASS lcl_ddic_table DEFINITION INHERITING FROM lcl_ddic_table_base CREATE PRIVATE .
+CLASS lcl_ddic_domain DEFINITION CREATE PRIVATE INHERITING FROM lcl_ddic_base.
+  PUBLIC SECTION.
+    TYPES:
+      type_header    TYPE dd01v,
+      type_value     TYPE dd07v,
+      type_value_tab TYPE STANDARD TABLE OF type_value WITH DEFAULT KEY.
+
+    CONSTANTS:
+      con_objtype TYPE type_object_type VALUE 'DOMA'.
+
+    CLASS-METHODS:
+      create_instance IMPORTING i_domname          TYPE type_object_name
+                                i_langu            TYPE type_language
+                      RETURNING VALUE(ro_instance) TYPE REF TO lcl_ddic_domain.
+
+    METHODS:
+      constructor     IMPORTING i_domname TYPE dd01l-domname
+                                i_objtype TYPE type_object_type DEFAULT con_objtype
+                                i_langu   TYPE type_language,
+      load_metadata,
+      get_header      RETURNING VALUE(r_result)  TYPE type_header,
+      get_value       IMPORTING i_domvalue     TYPE type_value-domvalue_l
+                      RETURNING VALUE(r_value) TYPE type_value,
+      get_values      RETURNING VALUE(r_results) TYPE type_value_tab.
+
+  PRIVATE SECTION.
+    DATA:
+      m_domname TYPE dd01l-domname,
+
+      BEGIN OF m_data,
+        header TYPE type_header,
+        values TYPE type_value_tab,
+      END OF m_data.
+ENDCLASS.
+
+CLASS lcl_ddic_table DEFINITION INHERITING FROM lcl_ddic_base CREATE PRIVATE .
   PUBLIC SECTION.
     TYPES:
       BEGIN OF type_texttable_ref,
@@ -146,20 +188,26 @@ CLASS lcl_ddic_table DEFINITION INHERITING FROM lcl_ddic_table_base CREATE PRIVA
         ref       TYPE REF TO lcl_ddic_table,
       END OF type_texttable_ref,
 
-      type_header    TYPE dd02v,
-      type_devclass  TYPE tdevct,
-      type_settings  TYPE dd09v,
-      type_field     TYPE dd03p,
-      type_field_tab TYPE STANDARD TABLE OF type_field WITH DEFAULT KEY.
+      type_header         TYPE dd02v,
+      type_devclass       TYPE tdevct,
+      type_settings       TYPE dd09v,
+      type_field          TYPE dd03p,
+      type_field_tab      TYPE STANDARD TABLE OF type_field WITH DEFAULT KEY,
+      type_text_dataclass TYPE dartt.
+
+    CONSTANTS:
+      con_objtype TYPE type_object_type VALUE 'TABL'.
 
     CLASS-METHODS:
       create_instance   IMPORTING i_tabname TYPE dd02l-tabname i_langu TYPE sy-langu
                         RETURNING VALUE(ro_instance) TYPE REF TO lcl_ddic_table.
     METHODS:
-      constructor       IMPORTING i_tabname TYPE dd02l-tabname i_langu TYPE sy-langu,
-      load_metadata,
+      constructor       IMPORTING i_tabname TYPE dd02l-tabname
+                                  i_objtype TYPE type_object_type DEFAULT con_objtype
+                                  i_langu   TYPE sy-langu,      load_metadata,
       get_header        RETURNING VALUE(r_result)  TYPE type_header,
       get_devclass      RETURNING VALUE(r_result)  TYPE type_devclass,
+      get_data_class    RETURNING VALUE(r_result)  TYPE type_text_dataclass,
       get_settings      RETURNING VALUE(r_result)  TYPE type_settings,
       get_fields        IMPORTING i_with_includes  TYPE abap_bool DEFAULT abap_true
                         RETURNING VALUE(r_results) TYPE type_field_tab,
@@ -168,7 +216,8 @@ CLASS lcl_ddic_table DEFINITION INHERITING FROM lcl_ddic_table_base CREATE PRIVA
   PRIVATE SECTION.
     METHODS:
       read_header,
-      read_devclass.
+      read_devclass,
+      read_data_class.
 
     DATA:
       m_tabname   TYPE dd02l-tabname,
@@ -180,27 +229,120 @@ CLASS lcl_ddic_table DEFINITION INHERITING FROM lcl_ddic_table_base CREATE PRIVA
         techn_settings TYPE type_settings,
         object_state   TYPE ddgotstate,
         fields         TYPE type_field_tab,
-      END OF m_table_data.
+      END OF m_table_data,
+      BEGIN OF m_text_data,
+        data_class TYPE type_text_dataclass,
+      END OF m_text_data.
+ENDCLASS.
+
+CLASS lcl_alv_dynamic_tools DEFINITION CREATE PRIVATE FINAL.
+  PUBLIC SECTION.
+    TYPES:
+      BEGIN OF type_output_simple,
+        fieldname TYPE fieldname,
+        fieldtext TYPE scrtext_m,
+        value     TYPE scrtext_l,
+        descr     TYPE val_text,
+      END OF type_output_simple,
+      type_output_simple_tab TYPE STANDARD TABLE OF type_output_simple WITH DEFAULT KEY.
+
+    CLASS-METHODS:
+      get_structure_fields_for  IMPORTING i_structure      TYPE data
+                                          i_language       TYPE sy-langu
+                                RETURNING VALUE(rt_fields) TYPE type_output_simple_tab,
+      get_structure_fields      IMPORTING i_structure         TYPE data
+                                          i_language          TYPE sy-langu
+                                          i_struct_components TYPE cl_abap_structdescr=>component_table
+                                RETURNING VALUE(rt_fields)    TYPE type_output_simple_tab,
+      set_output_simple_columns IMPORTING i_columns_table     TYPE REF TO cl_salv_columns_table,
+      check_table_field_empty   IMPORTING i_column_name       TYPE lvc_fname
+                                          i_table             TYPE STANDARD TABLE
+                                RETURNING VALUE(rv_not_empty) TYPE abap_bool.
+ENDCLASS.
+
+CLASS lcl_ddic_domain IMPLEMENTATION.
+  METHOD constructor.
+    super->constructor( i_objtype = i_objtype i_langu = i_langu ).
+    m_domname = i_domname.
+    load_metadata( ).
+  ENDMETHOD.
+
+  METHOD create_instance.
+    DATA(ls_instance) = get_instance( i_objname = i_domname i_objtype = con_objtype i_langu = i_langu ).
+    IF ( ls_instance IS INITIAL ).
+      TRY.
+          DATA(instance) = NEW lcl_ddic_domain( i_domname = i_domname i_langu = i_langu ).
+          ls_instance-objname = instance->get_header( )-domname.
+          ls_instance-objtype = instance->mv_objtype.
+          ls_instance-langu   = instance->get_header( )-ddlanguage.
+          ls_instance-ref     = instance.
+
+          add_instance( ls_instance ).
+        CATCH cx_sy_ref_is_initial.
+          MESSAGE 'Technical Error CX_SY_REF_IS_INITIAL in LCL_DDIC_DOMAIN=>CREATE_INSTANCE' TYPE 'E'.
+      ENDTRY.
+    ENDIF.
+
+    ro_instance ?= ls_instance-ref.
+  ENDMETHOD.
+
+  METHOD load_metadata.
+    IF ( mv_loaded = abap_false ).
+      CALL FUNCTION 'DDIF_DOMA_GET'
+        EXPORTING
+          name          = m_domname
+          state         = 'A'
+          langu         = mv_langu
+        IMPORTING
+          dd01v_wa      = m_data-header
+        TABLES
+          dd07v_tab     = m_data-values
+        EXCEPTIONS
+          illegal_input = 1
+          OTHERS        = 2.
+      IF ( sy-subrc = 0 ).
+        mv_loaded = abap_true.
+      ENDIF.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD get_header.
+    r_result = m_data-header.
+  ENDMETHOD.
+
+  METHOD get_value.
+    READ TABLE m_data-values INTO r_value WITH KEY domvalue_l = i_domvalue ddlanguage = mv_langu.
+  ENDMETHOD.
+
+  METHOD get_values.
+    r_results = m_data-values.
+  ENDMETHOD.
 ENDCLASS.
 
 CLASS lcl_ddic_table IMPLEMENTATION.
   METHOD constructor.
-    super->constructor( i_langu ).
+    super->constructor( i_objtype = con_objtype i_langu = i_langu ).
     m_tabname = i_tabname.
     read_header( ).
   ENDMETHOD.
 
   METHOD create_instance.
-    DATA(ls_instance) = get_instance( i_tabname = i_tabname i_langu = i_langu ).
+    DATA(ls_instance) = get_instance( i_objname = i_tabname i_objtype = con_objtype i_langu = i_langu ).
     IF ( ls_instance IS INITIAL ).
-      ls_instance-tabname = i_tabname.
-      ls_instance-langu   = i_langu.
-      ls_instance-ref     = NEW lcl_ddic_table( i_tabname = i_tabname i_langu = i_langu ).
+      TRY.
+          DATA(instance) = NEW lcl_ddic_table( i_tabname = i_tabname i_objtype = con_objtype i_langu = i_langu ).
+          ls_instance-objname = instance->get_header( )-tabname.
+          ls_instance-objtype = instance->mv_objtype.
+          ls_instance-langu   = instance->get_header( )-ddlanguage.
+          ls_instance-ref     = instance.
 
-      add_instance( ls_instance ).
+          add_instance( ls_instance ).
+        CATCH cx_sy_ref_is_initial.
+          MESSAGE 'Technical Error CX_SY_REF_IS_INITIAL in LCL_DDIC_TABLE=>CREATE_INSTANCE' TYPE 'E'.
+      ENDTRY.
     ENDIF.
 
-    ro_instance = ls_instance-ref.
+    ro_instance ?= ls_instance-ref.
   ENDMETHOD.
 
   METHOD get_header.
@@ -209,6 +351,10 @@ CLASS lcl_ddic_table IMPLEMENTATION.
 
   METHOD get_devclass.
     r_result = m_table_data-devclass.
+  ENDMETHOD.
+
+  METHOD get_data_class.
+    r_result = m_text_data-data_class.
   ENDMETHOD.
 
   METHOD get_settings.
@@ -247,6 +393,7 @@ CLASS lcl_ddic_table IMPLEMENTATION.
 
         " Re-read devclass since load_metadata overwrites the header
         read_devclass( ).
+        read_data_class( ).
 
         " Search texttable
         CALL FUNCTION 'DDUT_TEXTTABLE_GET'
@@ -287,6 +434,112 @@ CLASS lcl_ddic_table IMPLEMENTATION.
         FROM tadir AS a LEFT OUTER JOIN tdevct AS c ON a~devclass = c~devclass AND c~spras = @mv_langu
       INTO @m_table_data-devclass
       WHERE a~pgmid = 'R3TR' AND a~object = @lv_object AND a~obj_name = @lv_obj_name.
+  ENDMETHOD.
+
+  METHOD read_data_class.
+    SELECT SINGLE a~tabart, b~ddlangu, b~darttext
+      FROM ddart AS a LEFT OUTER JOIN dartt AS b ON a~tabart = b~tabart AND b~ddlangu = @mv_langu
+      INTO @m_text_data-data_class
+      WHERE a~tabart = @m_table_data-techn_settings-tabart.
+  ENDMETHOD.
+ENDCLASS.
+
+CLASS lcl_alv_dynamic_tools IMPLEMENTATION.
+  METHOD get_structure_fields_for.
+    TRY.
+        DATA(structdescr) = CAST cl_abap_structdescr( cl_abap_typedescr=>describe_by_data( i_structure ) ).
+        rt_fields = get_structure_fields(
+          i_structure         = i_structure
+          i_language          = i_language
+          i_struct_components = structdescr->get_components( ) ).
+      CATCH cx_sy_move_cast_error.
+        " no valide structure type
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD get_structure_fields.
+    DATA:
+      fieldtext TYPE string,
+      descr     TYPE string.
+
+    FIELD-SYMBOLS <value> TYPE data.
+
+    LOOP AT i_struct_components INTO DATA(component).
+      IF ( component-as_include = abap_true ).
+        APPEND LINES OF get_structure_fields(
+          i_structure         = i_structure
+          i_language          = i_language
+          i_struct_components = CAST cl_abap_structdescr( component-type )->get_components( ) ) TO rt_fields.
+      ELSE.
+        ASSIGN COMPONENT component-name OF STRUCTURE i_structure TO <value>.
+        IF ( sy-subrc = 0 AND <value> IS NOT INITIAL ).
+          DATA(ddic_field) = CAST cl_abap_elemdescr( component-type )->get_ddic_field( ).
+          fieldtext = COND #( WHEN ddic_field-scrtext_m IS NOT INITIAL THEN ddic_field-scrtext_m
+                              WHEN ddic_field-scrtext_l IS NOT INITIAL THEN ddic_field-scrtext_l
+                              WHEN ddic_field-scrtext_s IS NOT INITIAL THEN ddic_field-scrtext_s
+                              WHEN ddic_field-fieldtext IS NOT INITIAL THEN ddic_field-fieldtext
+                            ).
+
+          IF ( ddic_field-domname IS NOT INITIAL ).
+            DATA(domain_value) = lcl_ddic_domain=>create_instance(
+              i_domname = ddic_field-domname i_langu = i_language )->get_value( i_domvalue = CONV #( <value> ) ).
+
+            descr = domain_value-ddtext.
+          ENDIF.
+
+          APPEND VALUE #(
+            fieldname = component-name
+            fieldtext = fieldtext
+            value     = <value>
+            descr     = descr ) TO rt_fields.
+        ENDIF.
+      ENDIF.
+
+      CLEAR: fieldtext, descr.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD set_output_simple_columns.
+    DATA column_table TYPE REF TO cl_salv_column_table.
+    DATA(columns) = i_columns_table->get( ).
+    LOOP AT columns INTO DATA(column).
+      column_table ?= column-r_column.
+
+      IF ( column-columnname = 'FIELDNAME' ).
+        column_table->set_visible( if_salv_c_bool_sap=>false ).
+      ELSEIF ( column-columnname = 'FIELDTEXT' ).
+        column_table->set_key( if_salv_c_bool_sap=>true ).
+
+        column-r_column->set_short_text( 'Field' ).
+        column-r_column->set_medium_text( 'Field Name' ).
+        column-r_column->set_long_text( 'Field Name' ).
+        column-r_column->set_fixed_header_text( 'M' ).
+      ELSEIF ( column-columnname = 'VALUE' ).
+        column_table->set_key( if_salv_c_bool_sap=>false ).
+
+        column-r_column->set_short_text( 'Value' ).
+        column-r_column->set_medium_text( 'Value' ).
+        column-r_column->set_long_text( 'Value' ).
+        column-r_column->set_output_length( '30' ).
+      ELSE.
+        column_table->set_key( if_salv_c_bool_sap=>false ).
+
+        column-r_column->set_short_text( 'Descr.' ).
+        column-r_column->set_medium_text( 'Description' ).
+        column-r_column->set_long_text( 'Description' ).
+        column-r_column->set_fixed_header_text( 'L' ).
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD check_table_field_empty.
+    rv_not_empty = if_salv_c_bool_sap=>false.
+    LOOP AT i_table ASSIGNING FIELD-SYMBOL(<data_line>).
+      ASSIGN COMPONENT i_column_name OF STRUCTURE <data_line> TO FIELD-SYMBOL(<value>).
+      IF ( sy-subrc = 0 AND <value> IS NOT INITIAL ).
+        rv_not_empty = if_salv_c_bool_sap=>true. EXIT.
+      ENDIF.
+    ENDLOOP.
   ENDMETHOD.
 ENDCLASS.
 
@@ -938,6 +1191,10 @@ CLASS lcl_table_control DEFINITION INHERITING FROM lcl_control.
       lif_table_tree_control.
 
     CONSTANTS:
+      con_height_toolbar   TYPE i VALUE 70,
+      con_height_filter    TYPE i VALUE 175,
+      con_height_searchbar TYPE i VALUE 50,
+
       BEGIN OF con_fcode,
         select_language    TYPE ui_func VALUE 'LANGUAGE',
         filter_defaults    TYPE ui_func VALUE 'DEFAULTS',
@@ -1036,11 +1293,6 @@ CLASS lcl_table_bar_control DEFINITION INHERITING FROM lcl_control.
       type_output_simple_tab TYPE STANDARD TABLE OF type_output_simple WITH DEFAULT KEY.
 
     METHODS:
-      get_structure_fields_for    IMPORTING i_structure      TYPE data
-                                  RETURNING VALUE(rt_fields) TYPE type_output_simple_tab,
-      get_structure_fields        IMPORTING i_structure         TYPE data
-                                            i_struct_components TYPE cl_abap_structdescr=>component_table
-                                  RETURNING VALUE(rt_fields)    TYPE type_output_simple_tab,
       on_refresh_content          FOR EVENT refresh_content OF lcl_control IMPORTING tabname language,
       on_delete_content           FOR EVENT delete_content  OF lcl_control IMPORTING table_keys.
 
@@ -1053,10 +1305,10 @@ CLASS lcl_table_bar_control DEFINITION INHERITING FROM lcl_control.
       mo_salv_settings    TYPE REF TO cl_salv_table,
       mo_salv_fields      TYPE REF TO cl_salv_table,
       mo_salv_texttable_h TYPE REF TO cl_salv_table,
-      mt_header           TYPE type_output_simple_tab,
-      mt_settings         TYPE type_output_simple_tab,
+      mt_header           TYPE lcl_alv_dynamic_tools=>type_output_simple_tab,
+      mt_settings         TYPE lcl_alv_dynamic_tools=>type_output_simple_tab,
       mt_fields           TYPE lcl_ddic_table=>type_field_tab,
-      mt_texttable_h      TYPE type_output_simple_tab.
+      mt_texttable_h      TYPE lcl_alv_dynamic_tools=>type_output_simple_tab.
 ENDCLASS.
 
 CLASS lcl_table_bar_control IMPLEMENTATION.
@@ -1151,42 +1403,14 @@ CLASS lcl_table_bar_control IMPLEMENTATION.
 **********************************************************************
   ENDMETHOD.
 
-  METHOD get_structure_fields_for.
-    TRY.
-        DATA(structdescr) = CAST cl_abap_structdescr( cl_abap_typedescr=>describe_by_data( i_structure ) ).
-        rt_fields = get_structure_fields(
-          i_structure         = i_structure
-          i_struct_components = structdescr->get_components( ) ).
-      CATCH cx_sy_move_cast_error.
-        " no valide structure type
-    ENDTRY.
-  ENDMETHOD.
-
-  METHOD get_structure_fields.
-    FIELD-SYMBOLS <value> TYPE data.
-    LOOP AT i_struct_components INTO DATA(component).
-      IF ( component-as_include = abap_true ).
-        APPEND LINES OF get_structure_fields(
-          i_structure         = i_structure
-          i_struct_components = CAST cl_abap_structdescr( component-type )->get_components( ) ) TO rt_fields.
-      ELSE.
-        ASSIGN COMPONENT component-name OF STRUCTURE i_structure TO <value>.
-        IF ( sy-subrc = 0 AND <value> IS NOT INITIAL ).
-          APPEND VALUE #(
-            fieldtext = CAST cl_abap_elemdescr( component-type )->get_ddic_field( )-fieldtext
-            value     = <value> ) TO rt_fields.
-        ENDIF.
-      ENDIF.
-    ENDLOOP.
-  ENDMETHOD.
-
   METHOD on_refresh_content.
     DATA:
-      visible_ids  TYPE STANDARD TABLE OF i,
-      tabledescr   TYPE REF TO cl_abap_tabledescr,
-      column_table TYPE REF TO cl_salv_column_table,
-      data         TYPE REF TO data,
-      is_not_empty TYPE abap_bool.
+      lo_ddic_table TYPE REF TO lcl_ddic_table,
+      visible_ids   TYPE STANDARD TABLE OF i,
+      tabledescr    TYPE REF TO cl_abap_tabledescr,
+      column_table  TYPE REF TO cl_salv_column_table,
+      data          TYPE REF TO data,
+      is_not_empty  TYPE abap_bool.
 
     FIELD-SYMBOLS:
       <table>     TYPE STANDARD TABLE,
@@ -1217,7 +1441,9 @@ CLASS lcl_table_bar_control IMPLEMENTATION.
 
     CLEAR mt_header.
     IF ( tabname IS NOT INITIAL ).
-      DATA(lo_ddic_table) = lcl_ddic_table_base=>get_instance( i_tabname = tabname i_langu = language )-ref.
+      lo_ddic_table ?= lcl_ddic_base=>get_instance(
+        i_objname = tabname i_objtype = lcl_ddic_table=>con_objtype i_langu = language )-ref.
+
       lo_ddic_table->load_metadata( ).
 
       DATA(table_header)  = lo_ddic_table->get_header( ).
@@ -1225,7 +1451,9 @@ CLASS lcl_table_bar_control IMPLEMENTATION.
         table_header-ddtext = |Description in { get_language_iso( language ) } not available|.
       ENDIF.
 
-      mt_header = get_structure_fields_for( table_header ).
+      mt_header = lcl_alv_dynamic_tools=>get_structure_fields_for(
+        i_language  = mv_language
+        i_structure = table_header ).
 
       DATA(table_devclass)  = lo_ddic_table->get_devclass( ).
       IF ( table_devclass-ctext IS INITIAL ).
@@ -1233,12 +1461,16 @@ CLASS lcl_table_bar_control IMPLEMENTATION.
       ENDIF.
 
       APPEND VALUE #(
+        fieldname = 'DEVCLASS'
         fieldtext = 'Package'
         value     = table_devclass-devclass ) TO mt_header.
 
       APPEND VALUE #(
+        fieldname = 'CTEXT'
         fieldtext = 'Package Description'
         value     = table_devclass-ctext ) TO mt_header.
+
+      lcl_alv_dynamic_tools=>set_output_simple_columns( mo_salv_header->get_columns( ) ).
 
       IF ( mt_header IS NOT INITIAL ).
         APPEND 1 TO visible_ids.
@@ -1257,7 +1489,16 @@ CLASS lcl_table_bar_control IMPLEMENTATION.
     CLEAR mt_settings.
     IF ( tabname IS NOT INITIAL ).
       DATA(table_settings) = lo_ddic_table->get_settings( ).
-      mt_settings = get_structure_fields_for( table_settings ).
+      mt_settings = lcl_alv_dynamic_tools=>get_structure_fields_for(
+        i_language  = mv_language
+        i_structure = lo_ddic_table->get_settings( ) ).
+
+      READ TABLE mt_settings ASSIGNING FIELD-SYMBOL(<setting>) WITH KEY fieldname = 'TABART'.
+      IF ( sy-subrc = 0 ).
+        <setting>-descr = lo_ddic_table->get_data_class( )-darttext.
+      ENDIF.
+
+      lcl_alv_dynamic_tools=>set_output_simple_columns( mo_salv_settings->get_columns( ) ).
 
       IF ( mt_settings IS NOT INITIAL ).
         APPEND 2 TO visible_ids.
@@ -1328,7 +1569,9 @@ CLASS lcl_table_bar_control IMPLEMENTATION.
           table_header-ddtext = |Description in { get_language_iso( language ) } not available|.
         ENDIF.
 
-        mt_texttable_h = get_structure_fields_for( table_header ).
+        mt_texttable_h = lcl_alv_dynamic_tools=>get_structure_fields_for(
+          i_language  = mv_language
+          i_structure = table_header ).
 
         table_devclass  = lo_texttable->get_devclass( ).
         IF ( table_devclass-ctext IS INITIAL ).
@@ -1336,12 +1579,16 @@ CLASS lcl_table_bar_control IMPLEMENTATION.
         ENDIF.
 
         APPEND VALUE #(
+          fieldname = 'DEVCLASS'
           fieldtext = 'Package'
           value     = table_devclass-devclass ) TO mt_texttable_h.
 
         APPEND VALUE #(
+          fieldname = 'CTEXT'
           fieldtext = 'Package Description'
           value     = table_devclass-ctext ) TO mt_texttable_h.
+
+        lcl_alv_dynamic_tools=>set_output_simple_columns( mo_salv_texttable_h->get_columns( ) ).
       ENDIF.
 
       IF ( mt_texttable_h IS NOT INITIAL ).
@@ -1424,8 +1671,10 @@ CLASS lcl_ddic_model IMPLEMENTATION.
           <combo> = <combo> && lv_tok.
         ENDLOOP.
       ELSE.
-        DATA(lv_lower)       = to_lower( lv_tok ).
-        DATA(lv_capitalized) = to_upper( lv_lower(1) ) && lv_lower+1.
+        DATA(lv_lower) = to_lower( lv_tok ).
+        IF ( lv_lower IS NOT INITIAL ).
+          DATA(lv_capitalized) = to_upper( lv_lower(1) ) && lv_lower+1.
+        ENDIF.
 
         CLEAR lt_new_combs.
         LOOP AT lt_combinations INTO DATA(lv_combo).
@@ -1586,9 +1835,9 @@ CLASS lcl_table_control IMPLEMENTATION.
 
     " Place for one button: 35px height
     splitter->set_row_mode( mode = cl_gui_splitter_container=>mode_absolute ).
-    splitter->set_row_height( id = 1 height = 70 ). " place for two buttons
-    splitter->set_row_height( id = 2 height = 175 )." place for five buttons
-    splitter->set_row_height( id = 3 height = 50 ). " place for input field
+    splitter->set_row_height( id = 1 height = con_height_toolbar ).   " place for two buttons
+    splitter->set_row_height( id = 2 height = con_height_filter ).    " place for five buttons
+    splitter->set_row_height( id = 3 height = con_height_searchbar ). " place for input field
 
     DO 3 TIMES.
       splitter->set_row_sash(
@@ -1991,23 +2240,6 @@ CLASS lcl_table_control IMPLEMENTATION.
         RAISE EVENT items_deleted EXPORTING selected_items = selected_tables.
       ENDIF.
 
-      " select the next line if the control on the left site and no line is currently active
-      IF ( mv_view_position = enum_view_pos_x-left AND get_current_line( ) IS INITIAL ).
-        mo_salv->refresh( ).  " is it needed?
-
-        LOOP AT mo_salv->get_selections( )->get_selected_rows( ) INTO row.
-          mt_salv_output[ row ]-stat    = icon_checked.
-          mt_salv_output[ row ]-current = abap_true.
-          DATA(ls_first_selected) = mt_salv_output[ row ].
-
-          EXIT.
-        ENDLOOP.
-
-        IF ( ls_first_selected IS NOT INITIAL ).
-          RAISE EVENT table_selected EXPORTING tabname = ls_first_selected-tabname language = ls_first_selected-ddlanguage.
-        ENDIF.
-      ENDIF.
-
       mo_salv->refresh( ).
     ELSEIF ( e_salv_function = con_salv_function-se11
           OR e_salv_function = con_salv_function-se16
@@ -2019,7 +2251,7 @@ CLASS lcl_table_control IMPLEMENTATION.
       ENDIF.
 
       READ TABLE selected_rows INTO row INDEX 1.
-      ls_first_selected = mt_salv_output[ row ].
+      DATA(ls_first_selected) = mt_salv_output[ row ].
 
       DATA(tcode) = CONV sy-tcode( e_salv_function ).
       IF ( tcode <> 'SE11' AND ( ls_first_selected-tabclass = 'INTTAB' OR ls_first_selected-tabclass = 'APPEND' ) ).
@@ -2243,9 +2475,9 @@ CLASS lcl_view_base DEFINITION ABSTRACT FRIENDS lcl_controller_base.
 
     METHODS:
       destroy         ABSTRACT,
-      create_gos      FINAL IMPORTING i_name            TYPE string
-                                      i_parent          TYPE REF TO cl_gui_container
-                            RETURNING VALUE(r_gos)      TYPE REF TO cl_gui_gos_container,
+      create_gos      FINAL IMPORTING i_name       TYPE string
+                                      i_parent     TYPE REF TO cl_gui_container
+                            RETURNING VALUE(r_gos) TYPE REF TO cl_gui_gos_container,
       create_splitter FINAL IMPORTING i_name            TYPE string OPTIONAL
                                       i_parent          TYPE REF TO cl_gui_container
                                       i_rows            TYPE i
