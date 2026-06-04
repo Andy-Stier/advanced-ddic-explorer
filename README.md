@@ -25,6 +25,22 @@ Analyze structures, text tables, active database indices, and search helps for a
 
 ---
 
+## 📺 Video Documentation & Step-by-Step Manuals
+
+To make your onboarding seamless and show the engine in action under real-world corporate conditions, we provide a high-quality technical video series. No boring slides, no corporate fluff - just pure SAP GUI screen recordings guiding you through every advanced feature of the tool.
+
+▶️ **[Access the Official YouTube Channel & Watch All Manuals](https://www.youtube.com/@Andy-Stier)**
+
+### Inside the video library, you will find detailed guides on:
+* **Bulk Selections & Search Filters** – Mastering dynamic fields and language switching.
+* **Bulk Search by Table Description** – High-speed text processing driven by native `CP`/`NP` compiler performance.
+* **Deep Table Fields Analysis** – Schema investigation and structural breakdowns.
+* **And many more...**
+
+*Feel free to subscribe to the channel to never miss upcoming technical upgrades and release notes! 🔔*
+
+---
+
 ## 💡 Free vs. Pro Feature Matrix
 
 
