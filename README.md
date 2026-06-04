@@ -1,4 +1,4 @@
-# 🚀 Advanced DDIC Explorer for SAP (onPremise ABAP 7.40 SP08 - S/4HANA)
+# 🚀 Advanced DDIC Explorer for SAP (ABAP 7.40 SP08+)
 
 ### 📢 COMMUNITY NOTICE: OPEN BETA & EXTENDED TESTING PHASE
 The Free Open-Source Version is now officially **LIVE and ready for testing**! To ensure the absolute highest stability and performance down to ABAP 7.40, the commercial PRO Launch and the upcoming €9.99 Flash Sale have been **intentionally shifted**.
