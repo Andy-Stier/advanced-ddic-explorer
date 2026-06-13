@@ -1,13 +1,21 @@
-<?xml version="1.0" encoding="utf-8"?>
-<asx:abap xmlns:asx="http://sap.com" version="1.0">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<abapGit version="v1.0.0" serializer="LCL_OBJECT_PROG" serializer_version="v1.0.0">
+ <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
-    <PROG>
-      <NAME>ZASC_DDIC_EXPLORER_FREE</NAME>
-      <DBAPL>S</DBAPL>
-      <SUBC>1</SUBC>
-      <FIXPT>X</FIXPT>
-      <LDBNAME>SDB</LDBNAME>
-      <UCCHECK>X</UCCHECK>
-    </PROG>
+   <PROGDIR>
+    <NAME>ZASC_DDIC_EXPLORER_FREE</NAME>
+    <SUBC>1</SUBC>
+    <RLOAD>E</RLOAD>
+    <FIXPT>X</FIXPT>
+    <UCCHECK>X</UCCHECK>
+   </PROGDIR>
+   <TPOOL>
+    <item>
+     <ID>R</ID>
+     <ENTRY>E</ENTRY>
+     <LENGTH>1</LENGTH>
+    </item>
+   </TPOOL>
   </asx:values>
-</asx:abap>
+ </asx:abap>
+</abapGit>
