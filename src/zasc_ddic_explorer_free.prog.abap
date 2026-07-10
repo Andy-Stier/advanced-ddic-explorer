@@ -2,10 +2,10 @@ REPORT zasc_ddic_explorer_free.
 
 *-----------------------------------------------------------------------*
 * PRODUCT:     Advanced DDIC Explorer Community Edition
-* VERSION:     Community Version, Release V1.0.0
+* VERSION:     Community Version, Release V1.0.1
 * COPYRIGHT:   ©2026. All rights reserved.
 * AUTHOR:      Advanced DDIC Explorer Core Team
-* LAST UPDATE: 2026/07/08
+* LAST UPDATE: 2026/07/10
 *-----------------------------------------------------------------------*
 
 * See https://github.com/Andy-Stier/advanced-ddic-explorer
@@ -77,56 +77,13 @@ CLASS lcl_gui_handler DEFINITION ABSTRACT.
       app         TYPE REF TO lcl_app.
 ENDCLASS.
 
-CLASS lcl_control_metric DEFINITION FINAL.
-  PUBLIC SECTION.
-    TYPES:
-      type_factor TYPE p LENGTH 3 DECIMALS 2.
-
-    CONSTANTS:
-      BEGIN OF enum_screen_width,
-        small       TYPE i VALUE 1200,
-        middle      TYPE i VALUE 1500,
-        large       TYPE i VALUE 1800,
-        super_large TYPE i VALUE 2400,
-      END OF enum_screen_width.
-
-    CLASS-METHODS:
-      get_screen_x         RETURNING VALUE(rv_x) TYPE i,
-      get_screen_y         RETURNING VALUE(rv_y) TYPE i,
-      get_salv_line_height RETURNING VALUE(rv_height) TYPE i,
-      get_screen_factor    RETURNING VALUE(rv_factor) TYPE type_factor.
-ENDCLASS.
-
-CLASS lcl_control_metric IMPLEMENTATION.
-  METHOD get_screen_x.
-    rv_x = cl_gui_props_consumer=>create_consumer( )->get_metric_factors( )-screen-x.
-  ENDMETHOD.
-
-  METHOD get_screen_y.
-    rv_y = cl_gui_props_consumer=>create_consumer( )->get_metric_factors( )-screen-y.
-  ENDMETHOD.
-
-  METHOD get_salv_line_height.
-    DATA(screen_y) = get_screen_y( ).
-    IF ( screen_y < 1000 ).
-      rv_height = 42.
-    ELSEIF ( screen_y < 1500 ).
-      rv_height = 38.
-    ELSE.
-      rv_height = 36.
-    ENDIF.
-  ENDMETHOD.
-
-  METHOD get_screen_factor.
-    rv_factor = '0.9'.
-  ENDMETHOD.
-ENDCLASS.
-
+CLASS lcl_control_metric DEFINITION DEFERRED.
 CLASS lcl_input_fields DEFINITION ABSTRACT FINAL CREATE PRIVATE.
   PUBLIC SECTION.
     CLASS-DATA:
       language           TYPE REF TO sy-langu,
       max_hits           TYPE REF TO sy-dbcnt,
+      line_height        TYPE REF TO int1,
       bal_object         TYPE REF TO balsub-object,
       bal_sub_object     TYPE REF TO balsub-subobject,
       bal_ext_text       TYPE REF TO balnrext,
@@ -148,6 +105,40 @@ CLASS lcl_input_fields DEFINITION ABSTRACT FINAL CREATE PRIVATE.
       view_type_proj     TYPE REF TO abap_bool,
       view_type_maint    TYPE REF TO abap_bool,
       view_type_help     TYPE REF TO abap_bool.
+ENDCLASS.
+
+CLASS lcl_control_metric DEFINITION FINAL.
+  PUBLIC SECTION.
+    TYPES:
+      type_line_height TYPE n LENGTH 2,
+      type_factor      TYPE p LENGTH 3 DECIMALS 2.
+
+    CONSTANTS:
+      BEGIN OF enum_screen_width,
+        small       TYPE i VALUE 1200,
+        middle      TYPE i VALUE 1500,
+        large       TYPE i VALUE 1800,
+        super_large TYPE i VALUE 2400,
+      END OF enum_screen_width.
+
+    CLASS-METHODS:
+      get_screen_x    RETURNING VALUE(rv_x) TYPE i,
+      get_screen_y    RETURNING VALUE(rv_y) TYPE i,
+      get_line_height RETURNING VALUE(rv_height) TYPE i.
+ENDCLASS.
+
+CLASS lcl_control_metric IMPLEMENTATION.
+  METHOD get_screen_x.
+    rv_x = cl_gui_props_consumer=>create_consumer( )->get_metric_factors( )-screen-x.
+  ENDMETHOD.
+
+  METHOD get_screen_y.
+    rv_y = cl_gui_props_consumer=>create_consumer( )->get_metric_factors( )-screen-y.
+  ENDMETHOD.
+
+  METHOD get_line_height.
+    rv_height = lcl_input_fields=>line_height->*.
+  ENDMETHOD.
 ENDCLASS.
 
 CLASS lcl_message_log DEFINITION FINAL CREATE PUBLIC.
@@ -241,6 +232,11 @@ SELECTION-SCREEN END OF LINE.
 SELECTION-SCREEN BEGIN OF LINE.
 SELECTION-SCREEN COMMENT (26) lmaxhit FOR FIELD p_maxhit.
 PARAMETERS p_maxhit TYPE sy-dbcnt OBLIGATORY DEFAULT 500.
+SELECTION-SCREEN END OF LINE.
+
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN COMMENT (26) llineh FOR FIELD p_lineh.
+PARAMETERS p_lineh TYPE int1 OBLIGATORY DEFAULT 34.
 SELECTION-SCREEN END OF LINE.
 
 SELECTION-SCREEN BEGIN OF LINE.
@@ -4139,11 +4135,6 @@ CLASS lcl_search_control IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD create.
-    CONSTANTS:
-      con_height_toolbar   TYPE i VALUE 98,
-      con_height_filter    TYPE i VALUE 218,
-      con_height_searchbar TYPE i VALUE 40.
-
     set_max_hits( lcl_input_fields=>max_hits->* ).
 
     DATA(splitter) = NEW cl_gui_splitter_container(
@@ -4155,13 +4146,13 @@ CLASS lcl_search_control IMPLEMENTATION.
     splitter->set_row_mode( mode = cl_gui_splitter_container=>mode_absolute ).
     splitter->set_row_height(
       id     = 1
-      height = con_height_toolbar * lcl_control_metric=>get_screen_factor( ) ).
+      height = lcl_control_metric=>get_line_height( ) * 3 ).
     splitter->set_row_height(
       id     = 2
-      height = con_height_filter * lcl_control_metric=>get_screen_factor( ) ).
+      height = lcl_control_metric=>get_line_height( ) * 7 ).
     splitter->set_row_height(
       id     = 3
-      height = con_height_searchbar ).
+      height = lcl_control_metric=>get_line_height( ) * 1 ).
 
     DO 3 TIMES.
       splitter->set_row_sash(
@@ -5474,7 +5465,7 @@ CLASS lcl_table_view IMPLEMENTATION.
     ENDIF.
 
     DATA(style)      = cl_gui_control=>ws_minimizebox + cl_gui_control=>ws_maximizebox + cl_gui_control=>ws_sysmenu.
-    DATA(row_height) = lines( domain_header ) * lcl_control_metric=>get_salv_line_height( ).
+    DATA(row_height) = lines( domain_header ) * lcl_control_metric=>get_line_height( ).
 
     <popup_pos>-container = NEW #( parent = cl_gui_container=>default_screen
       caption = 'Domain'(t66) && | { domname }|
@@ -5721,6 +5712,7 @@ CLASS lcl_gui_handler IMPLEMENTATION.
     lsf      = 'SF OData Explorer'(l08).
     llangu   = 'Default Language'(l09).
     lmaxhit  = 'Maximal No. of Hits'(l10).
+    llineh   = 'Line Height for Display'(l38).
     ltcode   = 'Access to Standard TCodes'(l11).
     lse11    = 'SE11'(l12).
     lse16    = 'SE16'(l13).
@@ -5753,6 +5745,7 @@ CLASS lcl_gui_handler IMPLEMENTATION.
   METHOD set_input_data.
     GET REFERENCE OF p_langu  INTO lcl_input_fields=>language.
     GET REFERENCE OF p_maxhit INTO lcl_input_fields=>max_hits.
+    GET REFERENCE OF p_lineh  INTO lcl_input_fields=>line_height.
     GET REFERENCE OF p_balobj INTO lcl_input_fields=>bal_object.
     GET REFERENCE OF p_balsub INTO lcl_input_fields=>bal_sub_object.
     GET REFERENCE OF p_balext INTO lcl_input_fields=>bal_ext_text.
@@ -5791,6 +5784,7 @@ CLASS lcl_gui_handler IMPLEMENTATION.
     SUBMIT (sy-repid)
       WITH p_langu  = lcl_input_fields=>language->*
       WITH p_maxhit = lcl_input_fields=>max_hits->*
+      WITH p_lineh  = lcl_input_fields=>line_height->*
       WITH p_balobj = lcl_input_fields=>bal_object->*
       WITH p_balsub = lcl_input_fields=>bal_sub_object->*
       WITH p_balext = lcl_input_fields=>bal_ext_text->*
