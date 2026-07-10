@@ -2,13 +2,15 @@ REPORT zasc_ddic_explorer_free.
 
 *-----------------------------------------------------------------------*
 * PRODUCT:     Advanced DDIC Explorer Community Edition
-* VERSION:     Community Version, Release V1.0.1
+* VERSION:     Community Version, Release V1.0.2
 * COPYRIGHT:   ©2026. All rights reserved.
 * AUTHOR:      Advanced DDIC Explorer Core Team
 * LAST UPDATE: 2026/07/10
 *-----------------------------------------------------------------------*
 
-* See https://github.com/Andy-Stier/advanced-ddic-explorer
+* Contact
+* GitHub: https://github.com/Andy-Stier/advanced-ddic-explorer
+* E-Mail: advanced.abap.software@gmail.com
 
 ********************************************************************************
 * MIT License
@@ -236,7 +238,7 @@ SELECTION-SCREEN END OF LINE.
 
 SELECTION-SCREEN BEGIN OF LINE.
 SELECTION-SCREEN COMMENT (26) llineh FOR FIELD p_lineh.
-PARAMETERS p_lineh TYPE int1 OBLIGATORY DEFAULT 34.
+PARAMETERS p_lineh TYPE int1 OBLIGATORY DEFAULT 30.
 SELECTION-SCREEN END OF LINE.
 
 SELECTION-SCREEN BEGIN OF LINE.
@@ -735,10 +737,12 @@ CLASS lcl_ddic_table DEFINITION INHERITING FROM lcl_ddic_base CREATE PUBLIC.
                              RETURNING VALUE(r_results) TYPE type_field_tab,
       get_checktables        RETURNING VALUE(r_results)  TYPE type_checktable_tab,
       get_indexes            RETURNING VALUE(r_results)  TYPE type_index_tab,
-      get_index_fields       RETURNING VALUE(r_results)  TYPE type_index_field_tab,
+      get_index_fields       IMPORTING i_indexname      TYPE type_index-indexname OPTIONAL
+                             RETURNING VALUE(r_results) TYPE type_index_field_tab,
       get_search_helps       RETURNING VALUE(r_results)  TYPE type_searchhelp_tab,
-      get_search_help_fields RETURNING VALUE(r_results)  TYPE type_searchhelp_field_tab,
-      get_checktable_keys    IMPORTING i_checktable     TYPE dd08v-checktable
+      get_search_help_fields IMPORTING i_search_help    TYPE type_searchhelp-shlpname OPTIONAL
+                             RETURNING VALUE(r_results) TYPE type_searchhelp_field_tab,
+      get_checktable_keys    IMPORTING i_checktable     TYPE dd08v-checktable OPTIONAL
                              RETURNING VALUE(r_results) TYPE type_checktable_key_tab,
       get_checktable_ref     IMPORTING i_fieldname     TYPE dd08v-fieldname
                              RETURNING VALUE(r_result) TYPE REF TO lcl_ddic_table,
@@ -1085,9 +1089,13 @@ CLASS lcl_ddic_table IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD get_checktable_keys.
-    LOOP AT m_table_data-checktable_keys ASSIGNING FIELD-SYMBOL(<key>) WHERE checktable = i_checktable.
-      APPEND <key> TO r_results.
-    ENDLOOP.
+    IF ( i_checktable IS INITIAL ).
+      r_results = m_table_data-checktable_keys.
+    ELSE.
+      LOOP AT m_table_data-checktable_keys ASSIGNING FIELD-SYMBOL(<key>) WHERE checktable = i_checktable.
+        APPEND <key> TO r_results.
+      ENDLOOP.
+    ENDIF.
   ENDMETHOD.
 
   METHOD get_indexes.
@@ -1095,7 +1103,13 @@ CLASS lcl_ddic_table IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD get_index_fields.
-    r_results = m_table_data-index_fields.
+    IF ( i_indexname IS INITIAL ).
+      r_results = m_table_data-index_fields.
+    ELSE.
+      LOOP AT m_table_data-index_fields ASSIGNING FIELD-SYMBOL(<field>) WHERE indexname = i_indexname.
+        APPEND <field> TO r_results.
+      ENDLOOP.
+    ENDIF.
   ENDMETHOD.
 
   METHOD get_search_helps.
@@ -1103,7 +1117,13 @@ CLASS lcl_ddic_table IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD get_search_help_fields.
-    r_results = m_table_data-search_help_fields.
+    IF ( i_search_help IS INITIAL ).
+      r_results = m_table_data-search_help_fields.
+    ELSE.
+      LOOP AT m_table_data-search_help_fields ASSIGNING FIELD-SYMBOL(<key>) WHERE shlpname = i_search_help.
+        APPEND <key> TO r_results.
+      ENDLOOP.
+    ENDIF.
   ENDMETHOD.
 
   METHOD get_texttable_ref.
@@ -2487,6 +2507,10 @@ CLASS lcl_show_table_control DEFINITION INHERITING FROM lcl_control.
         IMPORTING row column sender,
       on_checktable_click          FOR EVENT link_click OF cl_salv_events_table
         IMPORTING row column sender,
+      on_checktable_double_click   FOR EVENT double_click OF cl_salv_events_table
+        IMPORTING row column sender,
+      on_checktable_fields_click   FOR EVENT link_click OF cl_salv_events_table
+        IMPORTING row column sender,
       on_index_double_click        FOR EVENT double_click OF cl_salv_events_table
         IMPORTING row column sender,
       on_searchhelp_double_click   FOR EVENT double_click OF cl_salv_events_table
@@ -2509,6 +2533,7 @@ CLASS lcl_show_table_control DEFINITION INHERITING FROM lcl_control.
       mo_salv_fields            TYPE REF TO cl_salv_table,
       mo_salv_texttable_h       TYPE REF TO cl_salv_table,
       mo_salv_checktables       TYPE REF TO cl_salv_table,
+      mo_salv_checktable_keys   TYPE REF TO cl_salv_table,
       mo_salv_indices           TYPE REF TO cl_salv_table,
       mo_salv_index_fields      TYPE REF TO cl_salv_table,
       mo_salv_searchhelps       TYPE REF TO cl_salv_table,
@@ -2522,6 +2547,7 @@ CLASS lcl_show_table_control DEFINITION INHERITING FROM lcl_control.
       mt_table_fields           TYPE lcl_ddic_table=>type_field_tab,
       mt_texttable_h            TYPE lcl_alv_dynamic_tools=>type_output_simple_tab,
       mt_checktables            TYPE lcl_ddic_table=>type_checktable_tab,
+      mt_checktable_keys        TYPE lcl_ddic_table=>type_checktable_key_tab,
       mt_indices                TYPE lcl_ddic_table=>type_index_tab,
       mt_index_fields           TYPE lcl_ddic_table=>type_index_field_tab,
       mt_searchhelps            TYPE lcl_ddic_table=>type_searchhelp_tab,
@@ -2688,9 +2714,17 @@ CLASS lcl_show_table_control IMPLEMENTATION.
 **********************************************************************
 
     container = mo_tabstrip->get_container( id = 4 ).
+    DATA(splitter) = NEW cl_gui_splitter_container(
+      parent                  = container
+      rows                    = 2
+      columns                 = 1
+      no_autodef_progid_dynnr = abap_true ).
+
+    splitter->set_row_height( id = 1 height = 70 ).
+
     TRY.
         cl_salv_table=>factory(
-          EXPORTING r_container  = container
+          EXPORTING r_container  = splitter->get_container( row = 1 column = 1 )
           IMPORTING r_salv_table = mo_salv_checktables
           CHANGING  t_table      = mt_checktables ).
       CATCH cx_salv_msg INTO error.
@@ -2722,17 +2756,56 @@ CLASS lcl_show_table_control IMPLEMENTATION.
 
     lcl_alv_dynamic_tools=>set_salv_defaults( mo_salv_checktables ).
 
-    SET HANDLER on_checktable_click FOR mo_salv_checktables->get_event( ).
+    SET HANDLER on_checktable_click          FOR mo_salv_checktables->get_event( ).
+    SET HANDLER on_checktable_double_click   FOR mo_salv_checktables->get_event( ).
     SET HANDLER on_raise_after_salv_function FOR mo_salv_checktables->get_event( ).
+
+    TRY.
+        cl_salv_table=>factory(
+          EXPORTING r_container  = splitter->get_container( row = 2 column = 1 )
+          IMPORTING r_salv_table = mo_salv_checktable_keys
+          CHANGING  t_table      = mt_checktable_keys ).
+      CATCH cx_salv_msg INTO error.
+        message_log->add_exception( i_error = error i_method = 'LCL_SHOW_TABLE_CONTROL->CREATE' ).
+        RETURN.
+    ENDTRY.
+
+    mo_salv_checktable_keys->get_display_settings( )->set_list_header( 'Check Table Keys'(t67) ).
+    mo_salv_checktable_keys->get_columns( )->set_key_fixation( if_salv_c_bool_sap=>true ).
+    mo_salv_checktable_keys->get_layout( )->set_save_restriction( if_salv_c_layout=>restrict_none ).
+    mo_salv_checktable_keys->get_layout( )->set_default( if_salv_c_bool_sap=>true ).
+    mo_salv_checktable_keys->get_layout( )->set_key( VALUE #( report = sy-repid logical_group = 'CHKF' ) ).
+
+    columns_table = mo_salv_checktable_keys->get_columns( ).
+    columns       = columns_table->get( ).
+    LOOP AT columns INTO column.
+      column_table ?= column-r_column.
+
+      CASE column-columnname.
+        WHEN 'TABNAME' OR 'FIELDNAME'.
+          column_table->set_key( if_salv_c_bool_sap=>true ).
+        WHEN 'DOMNAME'.
+          column_table->set_cell_type( if_salv_c_cell_type=>hotspot ).
+          column_table->set_color( VALUE lvc_s_colo( col = col_positive int = 0 inv = 0 ) ).
+      ENDCASE.
+    ENDLOOP.
+
+    mo_salv_checktable_keys->get_columns( )->set_optimize( ).
+
+    lcl_alv_dynamic_tools=>set_salv_defaults( mo_salv_checktable_keys ).
+
+    SET HANDLER on_checktable_fields_click FOR mo_salv_checktable_keys->get_event( ).
 
 **********************************************************************
 
     container = mo_tabstrip->get_container( id = 5 ).
-    DATA(splitter) = NEW cl_gui_splitter_container(
+    splitter = NEW cl_gui_splitter_container(
       parent                  = container
       rows                    = 2
       columns                 = 1
       no_autodef_progid_dynnr = abap_true ).
+
+    splitter->set_row_height( id = 1 height = 70 ).
 
     TRY.
         cl_salv_table=>factory(
@@ -2809,6 +2882,8 @@ CLASS lcl_show_table_control IMPLEMENTATION.
       rows                    = 2
       columns                 = 1
       no_autodef_progid_dynnr = abap_true ).
+
+    splitter->set_row_height( id = 1 height = 70 ).
 
     TRY.
         cl_salv_table=>factory(
@@ -3227,13 +3302,10 @@ CLASS lcl_show_table_control IMPLEMENTATION.
         ENDIF.
       ENDLOOP.
     ENDIF.
-
-    mt_index_fields = i_ddic_table->get_index_fields( ).
   ENDMETHOD.
 
   METHOD build_search_helps.
-    mt_searchhelps       = i_ddic_table->get_search_helps( ).
-    mt_searchhelp_fields = i_ddic_table->get_search_help_fields( ).
+    mt_searchhelps = i_ddic_table->get_search_helps( ).
   ENDMETHOD.
 
   METHOD build_view_header.
@@ -3659,82 +3731,82 @@ CLASS lcl_show_table_control IMPLEMENTATION.
     ENDTRY.
   ENDMETHOD.
 
-  METHOD on_index_double_click.
-    CONSTANTS columnname TYPE lvc_fname VALUE 'INDEXNAME'.
+  METHOD on_checktable_double_click.
+    CLEAR mt_checktable_keys.
 
-    DATA(tabline) = mt_indices[ row ].
-    DATA(filters) = mo_salv_index_fields->get_filters( ).
+    DATA(tabline) = mt_checktables[ row ].
+    IF ( tabline-fieldname IS NOT INITIAL ).
+      TRY.
+          DATA(ddic_table) = lcl_ddic_table=>create_instance(
+            i_tabname = tabline-tabname
+            i_langu   = mv_language
+          ).
 
+          mt_checktable_keys = ddic_table->get_checktable_keys( tabline-checktable ).
+        CATCH cx_sy_ref_is_initial INTO DATA(error).
+          message_log->add_exception( i_error = error i_method = 'LCL_SHOW_TABLE_CONTROL->ON_CHECKTABLE_DOUBLE_CLICK' ).
+      ENDTRY.
+    ENDIF.
+
+    mo_salv_checktable_keys->get_columns( )->set_optimize( ).
+    mo_salv_checktable_keys->refresh( ).
+  ENDMETHOD.
+
+  METHOD on_checktable_fields_click.
     TRY.
-        DATA(selopts) = filters->get_filter( columnname )->get( ).
-        READ TABLE selopts INTO DATA(selopt) INDEX 1.
-        IF ( sy-subrc = 0 ).
-          DATA(value) = selopt->get_low( ).
-          IF ( value = tabline-indexname ).
-            filters->remove_filter( columnname ).
-            mo_salv_index_fields->refresh( ).
-            RETURN.
-          ENDIF.
-        ENDIF.
-      CATCH cx_salv_not_found.
-        " no filter defined yet - OK
-    ENDTRY.
-
-    filters->remove_filter( columnname ).
-
-    TRY.
-        filters->add_filter(
-          columnname = columnname
-          sign       = 'I'
-          option     = 'EQ'
-          low        = CONV #( tabline-indexname ) ).
-
-        mo_salv_index_fields->refresh( ).
-      CATCH cx_salv_static_check INTO DATA(error).
-        message_log->add_exception(
-          i_error  = error
-          i_method = 'LCL_SHOW_TABLE_CONTROL->ON_INDEX_DOUBLE_CLICK'
-          i_object = tabline-indexname ).
+        DATA(tableline) = mt_checktable_keys[ row ].
+        CASE column.
+          WHEN 'DOMNAME'.
+            IF ( tableline-domname IS NOT INITIAL ).
+              RAISE EVENT domain_selected
+                EXPORTING domname = tableline-domname language = mv_language.
+            ENDIF.
+        ENDCASE.
+      CATCH cx_sy_itab_line_not_found INTO DATA(error).
+        message_log->add_exception( i_error = error i_method = 'LCL_SHOW_TABLE_CONTROL->ON_CHECKTABLE_FIELDS_CLICK' ).
     ENDTRY.
   ENDMETHOD.
 
+  METHOD on_index_double_click.
+    CLEAR mt_index_fields.
+
+    DATA(tabline) = mt_indices[ row ].
+    IF ( tabline-indexname IS NOT INITIAL ).
+      TRY.
+          DATA(ddic_table) = lcl_ddic_table=>create_instance(
+            i_tabname = tabline-sqltab
+            i_langu   = mv_language
+          ).
+
+          mt_index_fields = ddic_table->get_index_fields( tabline-indexname ).
+        CATCH cx_sy_ref_is_initial INTO DATA(error).
+          message_log->add_exception( i_error = error i_method = 'LCL_SHOW_TABLE_CONTROL->ON_INDEX_DOUBLE_CLICK' ).
+      ENDTRY.
+    ENDIF.
+
+    mo_salv_index_fields->get_columns( )->set_optimize( ).
+    mo_salv_index_fields->refresh( ).
+  ENDMETHOD.
+
   METHOD on_searchhelp_double_click.
-    CONSTANTS columnname TYPE lvc_fname VALUE 'SHLPNAME'.
+    CLEAR mt_searchhelp_fields.
 
     DATA(tabline) = mt_searchhelps[ row ].
-    DATA(filters) = mo_salv_searchhelp_fields->get_filters( ).
+    IF ( tabline-shlpname IS NOT INITIAL ).
+      TRY.
+          DATA(ddic_table) = lcl_ddic_table=>create_instance(
+            i_tabname = tabline-tabname
+            i_langu   = mv_language
+          ).
 
-    TRY.
-        DATA(selopts) = filters->get_filter( columnname )->get( ).
-        READ TABLE selopts INTO DATA(selopt) INDEX 1.
-        IF ( sy-subrc = 0 ).
-          DATA(value) = selopt->get_low( ).
-          IF ( value = tabline-shlpname ).
-            filters->remove_filter( columnname ).
-            mo_salv_searchhelp_fields->refresh( ).
-            RETURN.
-          ENDIF.
-        ENDIF.
-      CATCH cx_salv_not_found.
-        " no filter defined yet - OK
-    ENDTRY.
+          mt_searchhelp_fields = ddic_table->get_search_help_fields( tabline-shlpname ).
+        CATCH cx_sy_ref_is_initial INTO DATA(error).
+          message_log->add_exception( i_error = error i_method = 'LCL_SHOW_TABLE_CONTROL->ON_SEARCHHELP_DOUBLE_CLICK' ).
+      ENDTRY.
+    ENDIF.
 
-    filters->remove_filter( columnname ).
-
-    TRY.
-        filters->add_filter(
-          columnname = columnname
-          sign       = 'I'
-          option     = 'EQ'
-          low        = CONV #( tabline-shlpname ) ).
-
-        mo_salv_searchhelp_fields->refresh( ).
-      CATCH cx_salv_static_check INTO DATA(error).
-        message_log->add_exception(
-          i_error  = error
-          i_method = 'LCL_SHOW_TABLE_CONTROL->ON_SEARCHHELP_DOUBLE_CLICK'
-          i_object = tabline-shlpname ).
-    ENDTRY.
+    mo_salv_searchhelp_fields->get_columns( )->set_optimize( ).
+    mo_salv_searchhelp_fields->refresh( ).
   ENDMETHOD.
 
   METHOD on_searchhelp_fields_click.
