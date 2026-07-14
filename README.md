@@ -52,8 +52,6 @@ Advanced capabilities are available as optional commercial modules.
 | **OData Metadata Generator** |	🚧 Planned, 2026|
 | **SuccessFactors OData Explorer** |	🚧 Planned, 2027 |
 
----
-
 ## 📺 Video Documentation & Step-by-Step Manuals
 
 To make your onboarding seamless and show the engine in action under real-world corporate conditions, we provide a high-quality technical video series. No boring slides, no corporate fluff - just pure SAP GUI screen recordings guiding you through every advanced feature of the tool.
@@ -62,9 +60,11 @@ To make your onboarding seamless and show the engine in action under real-world 
 
 *Feel free to subscribe to the channel to never miss upcoming technical upgrades and release notes! 🔔*
 
----
-## Contact via E-Mail: advanced.abap.software@gmail.com
----
+## Feedback & Ideas: 
+Feedback is welcome! Please use GitHub Discussion: [Feedback & Ideas for the Community Edition](https://github.com/Andy-Stier/advanced-ddic-explorer/discussions/2)
+
+## Contact
+E-Mail: advanced.abap.software@gmail.com
 
 ## License
 The Community version of this software is licensed under the [MIT License](LICENSE). You are free to use, modify, and distribute the base version within your corporate landscape.
