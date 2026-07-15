@@ -12,6 +12,10 @@ Advanced DDIC Explorer helps ABAP developers explore and understand complex SAP 
 ✔ S/4HANA ready
 ✔ Open Source Community Edition (MIT)
 
+![Advanced DDIC Explorer User Interface](Search-Table.gif)
+![Advanced DDIC Explorer User Interface](Table-Overview.gif)
+![Advanced DDIC Explorer User Interface](Explore-Table.gif)
+
 ### Explore
 - Quickly find any SAP DDIC object (tables, views, structures)
 - Navigate complex metadata in seconds
