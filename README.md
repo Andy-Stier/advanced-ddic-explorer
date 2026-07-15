@@ -1,23 +1,45 @@
 # Advanced DDIC Explorer for SAP (ABAP 7.40 SP08+)
 
 ### SAP Metadata & Impact Analysis Platform
+Advanced DDIC Explorer helps ABAP developers explore and understand complex SAP metadata from a single, easy-to-use tool.
+
 *Explore. Understand. Document.*
 
 ![Advanced DDIC Explorer User Interface](Overview.png)
 
-## Why Advanced DDIC Explorer?
-* 🎯SAP standard tools provide technical information.
-* 💎Advanced DDIC Explorer helps developers understand dependencies, generate documentation, and analyze the impact of changes before implementation.
+✔ ABAP 7.40 SP08+
+✔ Single-file deployment
+✔ S/4HANA ready
+✔ Open Source Community Edition (MIT)
 
-## Community Edition
-* **DDIC Dashboard**
+### Explore
+- Quickly find any SAP DDIC object (tables, views, structures)
+- Navigate complex metadata in seconds
+- Explore relationships between SAP tables
+
+### Understand
+- Understand unfamiliar SAP standard and custom objects within minutes
+- Analyze DDIC objects in depth (header, fields, foreign keys, indexes, search helps, text tables)
+- Reduce the time required to understand legacy developments
+
+### Build Knowledge
+- Build the foundation for technical documentation
+- Prepare DDIC metadata for further analysis
+- Accelerate onboarding for new developers
+
+## Why Advanced DDIC Explorer?
+
+* SAP provides metadata
+* Advanced DDIC Explorer transforms metadata into actionable knowledge.
+
+## Included Features
+* **Full Search & Filter** 
 * **Header & Attributes**
 * **Fields**
 * **Text Table**
 * **Check Tables**
 * **Indexes**
 * **Search Helps**
-* **Full Search & Filter**
 
 ### Installation & Deployment
 
@@ -39,10 +61,7 @@ You can install the **Advanced DDIC Explorer** either as a classic single-file r
 *Baseline Compatibility: 100% compatible down to ABAP 7.40 and fully S/4HANA-ready!*
 
 ## Professional Modules
-Advanced capabilities are available as optional commercial modules.
-* **HTML Documentation**
-* **Impact Analysis**
-* **More modules are currently under development**
+Additional modules extend the platform with advanced documentation, impact analysis and automation capabilities.
 
 |Module |	Status |
 | :---| :--- |
@@ -54,7 +73,7 @@ Advanced capabilities are available as optional commercial modules.
 
 ## 📺 Video Documentation & Step-by-Step Manuals
 
-To make your onboarding seamless and show the engine in action under real-world corporate conditions, we provide a high-quality technical video series. No boring slides, no corporate fluff - just pure SAP GUI screen recordings guiding you through every advanced feature of the tool.
+Watch short technical videos covering installation, real-world use cases and new features.
 
 ▶️ **[Access the Official YouTube Channel & Watch All Manuals](https://www.youtube.com/@Andy-Stier)**
 
