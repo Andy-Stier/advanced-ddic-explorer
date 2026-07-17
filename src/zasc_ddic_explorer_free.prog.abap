@@ -2,10 +2,10 @@ REPORT zasc_ddic_explorer_free.
 
 *-----------------------------------------------------------------------*
 * PRODUCT:     Advanced DDIC Explorer Community Edition
-* VERSION:     Community Version, Release V1.0.3
+* VERSION:     Community Version, Release V1.0.4
 * COPYRIGHT:   ©2026. All rights reserved.
 * AUTHOR:      Advanced DDIC Explorer Core Team
-* LAST UPDATE: 2026/07/11
+* LAST UPDATE: 2026/07/17
 *-----------------------------------------------------------------------*
 
 * Contact
@@ -89,6 +89,8 @@ CLASS lcl_input_fields DEFINITION ABSTRACT FINAL CREATE PRIVATE.
       language           TYPE REF TO sy-langu,
       max_hits           TYPE REF TO sy-dbcnt,
       line_height        TYPE REF TO int1,
+      delete_history     TYPE REF TO abap_bool,
+      check_tables       TYPE REF TO abap_bool,
       bal_object         TYPE REF TO balsub-object,
       bal_sub_object     TYPE REF TO balsub-subobject,
       bal_ext_text       TYPE REF TO balnrext,
@@ -231,7 +233,7 @@ SELECTION-SCREEN END OF BLOCK block_appl.
 SELECTION-SCREEN BEGIN OF BLOCK block_appl_data WITH FRAME TITLE lappdata.
 SELECTION-SCREEN BEGIN OF LINE.
 SELECTION-SCREEN COMMENT (26) llangu FOR FIELD p_langu.
-PARAMETERS p_langu TYPE sy-langu DEFAULT sy-langu OBLIGATORY VALUE CHECK.
+PARAMETERS p_langu TYPE spras DEFAULT sy-langu OBLIGATORY VALUE CHECK.
 SELECTION-SCREEN END OF LINE.
 
 SELECTION-SCREEN BEGIN OF LINE.
@@ -250,16 +252,28 @@ PARAMETERS p_lineh TYPE int1 OBLIGATORY DEFAULT 30.
 SELECTION-SCREEN END OF LINE.
 
 SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN COMMENT (26) lcheck FOR FIELD p_check.
+PARAMETERS p_check TYPE abap_bool AS CHECKBOX DEFAULT space.
+SELECTION-SCREEN END OF LINE.
+
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN COMMENT (26) ldelmem FOR FIELD p_delmem.
+PARAMETERS p_delmem TYPE abap_bool AS CHECKBOX DEFAULT space.
+SELECTION-SCREEN END OF LINE.
+
+SELECTION-SCREEN BEGIN OF LINE.
 SELECTION-SCREEN COMMENT (26) ltcode.
 PARAMETERS p_se11 TYPE abap_bool AS CHECKBOX DEFAULT 'X'    USER-COMMAND accesstcode.
-SELECTION-SCREEN COMMENT (16) lse11 FOR FIELD p_se11.
+SELECTION-SCREEN COMMENT (10) lse11 FOR FIELD p_se11.
 PARAMETERS p_se16 TYPE abap_bool AS CHECKBOX DEFAULT space  USER-COMMAND accesstcode.
-SELECTION-SCREEN COMMENT (16) lse16 FOR FIELD p_se16.
+SELECTION-SCREEN COMMENT (10) lse16 FOR FIELD p_se16.
 PARAMETERS p_se16n TYPE abap_bool AS CHECKBOX DEFAULT space USER-COMMAND accesstcode.
-SELECTION-SCREEN COMMENT (16) lse16n FOR FIELD p_se16n.
+SELECTION-SCREEN COMMENT (10) lse16n FOR FIELD p_se16n.
 PARAMETERS p_se16h TYPE abap_bool AS CHECKBOX DEFAULT space USER-COMMAND accesstcode.
-SELECTION-SCREEN COMMENT (16) lse16h FOR FIELD p_se16h.
+SELECTION-SCREEN COMMENT (10) lse16h FOR FIELD p_se16h.
 SELECTION-SCREEN END OF LINE.
+
+SELECTION-SCREEN SKIP.
 
 SELECTION-SCREEN BEGIN OF LINE.
 SELECTION-SCREEN COMMENT 28(10) lbalobj.
@@ -289,7 +303,7 @@ SELECTION-SCREEN COMMENT (17) ltpool FOR FIELD p_pool.
 PARAMETERS p_clust  TYPE abap_bool AS CHECKBOX DEFAULT space USER-COMMAND objcategory.
 SELECTION-SCREEN COMMENT (16) ltclust FOR FIELD p_clust.
 PARAMETERS p_struct TYPE abap_bool AS CHECKBOX DEFAULT space USER-COMMAND objcategory.
-SELECTION-SCREEN COMMENT (16) ltstruct FOR FIELD p_struct.
+SELECTION-SCREEN COMMENT (14) ltstruct FOR FIELD p_struct.
 PARAMETERS p_append  TYPE abap_bool AS CHECKBOX DEFAULT space USER-COMMAND objcategory.
 SELECTION-SCREEN COMMENT (16) ltappend FOR FIELD p_append.
 SELECTION-SCREEN END OF LINE.
@@ -340,6 +354,11 @@ AT SELECTION-SCREEN ON p_maxhit.
     MESSAGE 'Check the value of "Maximal Number of Hits": Value < 1!'(m01) TYPE 'E'.
   ENDIF.
 
+AT SELECTION-SCREEN ON p_lineh.
+  IF ( p_lineh > 42 ).
+    MESSAGE 'Maximal value of "Line Height for Display" is 42!'(m14) TYPE 'E'.
+  ENDIF.
+
 AT SELECTION-SCREEN.
   lcl_gui_handler=>on_at_input( ).
 
@@ -369,8 +388,8 @@ CLASS lcl_message_log IMPLEMENTATION.
       log-subobject = i_subobject.
       log-aluser    = i_uname.
       log-alprog    = i_repid.
-      log-aldate    = sy-datum.
-      log-altime    = sy-uzeit.
+      log-aldate    = sy-datlo.
+      log-altime    = sy-timlo.
 
       CALL FUNCTION 'BAL_LOG_CREATE'
         EXPORTING
@@ -422,8 +441,7 @@ CLASS lcl_message_log IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    READ TABLE messages TRANSPORTING NO FIELDS
-      WITH KEY syst_msg = msg method = i_method object = i_object.
+    READ TABLE messages TRANSPORTING NO FIELDS WITH KEY syst_msg = msg.
     IF ( sy-subrc = 0 ).
       RETURN.
     ENDIF.
@@ -605,7 +623,18 @@ CLASS lcl_ddic_base DEFINITION ABSTRACT.
       BEGIN OF type_objclass_def,
         objclass TYPE rsobj_cls,
         text     TYPE c LENGTH 72,
-      END OF type_objclass_def.
+      END OF type_objclass_def,
+      BEGIN OF ty_transport_info,
+        obj_name TYPE e071-obj_name, " Name der Tabelle / View
+        object   TYPE e071-object,   " TABL oder VIEW
+        trkorr   TYPE e070-trkorr,   " Transportauftragsnummer
+        as4user  TYPE e070-as4user,  " Inhaber des Auftrags
+        trstatus TYPE e070-trstatus, " Status (R = Freigegeben, D = Änderbar)
+        as4date  TYPE e070-as4date,  " Letztes Änderungsdatum
+        as4time  TYPE e070-as4time,  " Letzte Änderungszeit
+        strkorr  TYPE e070-strkorr,  " Übergeordneter Auftrag (falls Aufgabe)
+      END OF ty_transport_info,
+      type_transport_infos TYPE STANDARD TABLE OF ty_transport_info WITH EMPTY KEY.
 
     CONSTANTS:
       con_active_state TYPE ddobjstate VALUE 'A'.
@@ -730,7 +759,8 @@ CLASS lcl_ddic_table DEFINITION INHERITING FROM lcl_ddic_base CREATE PUBLIC.
                                        i_langu            TYPE sy-langu
                                        i_load_metadata    TYPE abap_bool DEFAULT abap_false
                              RETURNING VALUE(ro_instance) TYPE REF TO lcl_ddic_table
-                             RAISING   cx_sy_ref_is_initial.
+                             RAISING   cx_sy_ref_is_initial
+                                       cx_sy_create_data_error.
     METHODS:
       constructor            IMPORTING i_tabname TYPE dd02l-tabname
                                        i_objtype TYPE type_object_type DEFAULT con_objtype
@@ -741,6 +771,7 @@ CLASS lcl_ddic_table DEFINITION INHERITING FROM lcl_ddic_base CREATE PUBLIC.
       get_devclass           RETURNING VALUE(r_result)   TYPE type_devclass,
       get_tadir              RETURNING VALUE(r_result)   TYPE type_tadir,
       get_data_class_text    RETURNING VALUE(r_result)   TYPE type_text_dataclass,
+      get_transport_infos    RETURNING VALUE(r_results)  TYPE type_transport_infos,
       get_settings           RETURNING VALUE(r_result)   TYPE type_settings,
       get_fields             IMPORTING i_with_includes  TYPE abap_bool DEFAULT abap_true
                              RETURNING VALUE(r_results) TYPE type_field_tab,
@@ -755,7 +786,7 @@ CLASS lcl_ddic_table DEFINITION INHERITING FROM lcl_ddic_base CREATE PUBLIC.
                              RETURNING VALUE(r_results) TYPE type_checktable_key_tab,
       get_checktable_ref     IMPORTING i_fieldname     TYPE dd08v-fieldname
                              RETURNING VALUE(r_result) TYPE REF TO lcl_ddic_table,
-      get_texttable_ref      RETURNING VALUE(r_result)  TYPE REF TO lcl_ddic_table.
+      get_texttable_ref      RETURNING VALUE(r_result)   TYPE REF TO lcl_ddic_table.
 
   PROTECTED SECTION.
     METHODS:
@@ -763,6 +794,7 @@ CLASS lcl_ddic_table DEFINITION INHERITING FROM lcl_ddic_base CREATE PUBLIC.
       read_header,
       read_devclass,
       read_tadir,
+      read_transport_info,
       read_data_class,
       read_language.
 
@@ -775,6 +807,7 @@ CLASS lcl_ddic_table DEFINITION INHERITING FROM lcl_ddic_base CREATE PUBLIC.
         header             TYPE type_header,
         devclass           TYPE type_devclass,
         tadir              TYPE type_tadir,
+        transport_infos    TYPE type_transport_infos,
         techn_settings     TYPE type_settings,
         object_state       TYPE ddgotstate,
         fields             TYPE type_field_tab,
@@ -1026,7 +1059,6 @@ CLASS lcl_ddic_table IMPLEMENTATION.
 
   METHOD create_instance.
     DATA instance TYPE REF TO lcl_ddic_table.
-
     TRY.
         DATA(ls_instance) = get_instance( i_objname = i_tabname i_objtype = con_objtype i_langu = i_langu ).
       CATCH cx_sy_ref_is_initial.
@@ -1045,7 +1077,10 @@ CLASS lcl_ddic_table IMPLEMENTATION.
           WHEN enum_tabclass-append.
             instance = NEW lcl_ddic_append( i_tabname = i_tabname i_objtype = con_objtype i_langu = i_langu ).
           WHEN OTHERS.
-            RETURN.
+            RAISE EXCEPTION TYPE cx_sy_create_data_error
+              EXPORTING
+                textid   = cx_sy_create_data_error=>cx_sy_create_data_error
+                typename = CONV #( i_tabname ).
         ENDCASE.
 
         ls_instance-objname = i_tabname.
@@ -1076,6 +1111,10 @@ CLASS lcl_ddic_table IMPLEMENTATION.
 
   METHOD get_data_class_text.
     r_result = m_text_data-data_class.
+  ENDMETHOD.
+
+  METHOD get_transport_infos.
+    r_results = m_table_data-transport_infos.
   ENDMETHOD.
 
   METHOD get_language_text.
@@ -1144,10 +1183,18 @@ CLASS lcl_ddic_table IMPLEMENTATION.
       WITH TABLE KEY tabname = m_tabname fieldname = i_fieldname.
     IF ( sy-subrc = 0 ).
       IF ( <fs_checktable>-ref IS INITIAL ).
-        <fs_checktable>-ref = create_instance( i_tabname = <fs_checktable>-checktable i_langu = mv_langu ).
-        <fs_checktable>-ref->load_metadata( ).
+        TRY.
+            <fs_checktable>-ref = create_instance( i_tabname = <fs_checktable>-checktable i_langu = mv_langu ).
+            <fs_checktable>-ref->load_metadata( ).
+            r_result = <fs_checktable>-ref.
+          CATCH cx_dynamic_check INTO DATA(error).
+            message_log->add_exception(
+                i_error  = error
+                i_method = 'LCL_DDIC_TABLE->GET_CHECKTABLE_REF'
+                i_object = <fs_checktable>-checktable
+            ).
+        ENDTRY.
       ENDIF.
-      r_result = <fs_checktable>-ref.
     ENDIF.
   ENDMETHOD.
 
@@ -1186,6 +1233,7 @@ CLASS lcl_ddic_table IMPLEMENTATION.
         read_devclass( ).
         read_data_class( ).
         read_tadir( ).
+        read_transport_info( ).
         read_language( ).
 
         " Search texttable
@@ -1264,7 +1312,7 @@ CLASS lcl_ddic_table IMPLEMENTATION.
         OTHERS        = 2.
     IF ( sy-subrc <> 0 ).
       message_log->add_message( i_read_sy = abap_true ). RETURN.
-    ELSE.
+    ELSEIF ( m_table_data-header IS NOT INITIAL ).
       read_devclass( ).
     ENDIF.
   ENDMETHOD.
@@ -1293,7 +1341,7 @@ CLASS lcl_ddic_table IMPLEMENTATION.
         AND object   = @lv_object
         AND obj_name = @m_table_data-header-tabname
       INTO @m_table_data-tadir.
-    IF ( sy-subrc = 0 ).
+    IF ( sy-subrc = 0 AND lcl_input_fields=>check_tables->* = abap_true ).
       DATA checktab TYPE STANDARD TABLE OF dcinspchk WITH EMPTY KEY.
       CALL FUNCTION 'DDIF_DD_CHECK'
         EXPORTING
@@ -1308,7 +1356,69 @@ CLASS lcl_ddic_table IMPLEMENTATION.
           i_method = 'DDIF_DD_CHECK'
           i_object = |{ m_table_data-tadir-object } { m_table_data-tadir-obj_name }| ).
       ENDLOOP.
+
+      DATA objtype TYPE ddeutype.
+      CASE m_table_data-header-tabclass.
+        WHEN enum_tabclass-transparent.
+          objtype = 'T'.
+        WHEN enum_tabclass-view.
+          objtype = 'V'.
+        WHEN enum_tabclass-structure OR enum_tabclass-append.
+          objtype = 'U'.
+        WHEN enum_tabclass-pool.
+          objtype = 'X'.
+        WHEN enum_tabclass-cluster.
+          objtype = 'Y'.
+      ENDCASE.
+
+      DATA messages TYPE ddmessages.
+      CALL FUNCTION 'RS_DD_CHECK'
+        EXPORTING
+          objname       = m_table_data-header-tabname
+          objtype       = objtype
+          i_no_dialog   = 'X'
+          i_no_ui       = 'X'
+          with_messages = 'X'
+        IMPORTING
+*         E_CHECK_RESULT       =
+          messages      = messages.
+
+      LOOP AT messages ASSIGNING FIELD-SYMBOL(<message>) WHERE sever <> 'N' AND sever <> 'I'.
+        message_log->add_message(
+            i_msg     = VALUE #(
+              msgid = <message>-arbgb
+              msgno = <message>-msgnr
+              msgty = <message>-sever
+              msgv1 = <message>-var1
+              msgv2 = <message>-var2
+              msgv3 = <message>-var3
+              msgv4 = <message>-var4 )
+            i_method  = 'RS_DD_CHECK'
+            i_object  = m_table_data-header-tabname ).
+      ENDLOOP.
     ENDIF.
+  ENDMETHOD.
+
+  METHOD read_transport_info.
+    IF ( m_table_data-tadir IS INITIAL ).
+      RETURN.
+    ENDIF.
+
+    " Direkter SELECT über die Transporttabellen (JOIN von E071 und E070)
+    SELECT e071~obj_name,
+           e071~object,
+           e070~trkorr,
+           e070~as4user,
+           e070~trstatus,
+           e070~as4date,
+           e070~as4time,
+           e070~strkorr
+      FROM e071
+      INNER JOIN e070 ON e070~trkorr = e071~trkorr
+      INTO TABLE @m_table_data-transport_infos
+      WHERE e071~pgmid    = 'R3TR'
+        AND e071~object   = @m_table_data-tadir-object
+        AND e071~obj_name = @m_table_data-header-tabname.
   ENDMETHOD.
 
   METHOD read_language.
@@ -1442,7 +1552,7 @@ CLASS lcl_ddic_data_element IMPLEMENTATION.
               m_domain_ref = lcl_ddic_domain=>create_instance(
                 i_domname = m_data-header-domname
                 i_langu   = mv_langu ).
-            CATCH cx_sy_ref_is_initial INTO DATA(error).
+            CATCH cx_dynamic_check INTO DATA(error).
               message_log->add_exception(
                 i_error  = error
                 i_method = 'LCL_DDIC_DOMAIN=>CREATE_INSTANCE'
@@ -2431,13 +2541,15 @@ CLASS lcl_search_control DEFINITION INHERITING FROM lcl_control.
     METHODS:
       constructor      IMPORTING i_langu         TYPE sy-langu,
       create           IMPORTING i_parent        TYPE REF TO cl_gui_container,
-      set_linked       IMPORTING i_linked        TYPE abap_bool DEFAULT abap_true,
       add_items_to_alv IMPORTING i_table_keys    TYPE type_table_keys,
-      get_count_lines  RETURNING VALUE(rv_lines) TYPE i.
+      call_history_popup,
+      get_history_lines RETURNING VALUE(rv_lines) TYPE i,
+      get_result_lines  RETURNING VALUE(rv_lines) TYPE i.
 
   PROTECTED SECTION.
     TYPES:
       BEGIN OF type_table_data,
+        favorite   TYPE iconname,
         class      TYPE iconname,
         stat       TYPE iconname,
         tabname    TYPE lcl_ddic_table=>type_header-tabname,
@@ -2445,7 +2557,15 @@ CLASS lcl_search_control DEFINITION INHERITING FROM lcl_control.
         ddtext     TYPE lcl_ddic_table=>type_header-ddtext,
         tabclass   TYPE lcl_ddic_table=>type_header-tabclass,
         current    TYPE abap_bool,
-      END OF type_table_data.
+      END OF type_table_data,
+      BEGIN OF ty_history,
+        opened_at TYPE sy-timlo,
+        tabname   TYPE dd02l-tabname,
+        tabclass  TYPE dd02l-tabclass,
+        langu     TYPE sy-langu,
+        ddtext    TYPE dd02t-ddtext,
+      END OF ty_history,
+      ty_history_tab TYPE STANDARD TABLE OF ty_history WITH EMPTY KEY..
 
     METHODS:
       on_search
@@ -2462,8 +2582,13 @@ CLASS lcl_search_control DEFINITION INHERITING FROM lcl_control.
         FOR EVENT added_function OF cl_salv_events_table IMPORTING e_salv_function sender,
       on_select_setup_toolbar
         FOR EVENT function_selected OF cl_gui_toolbar IMPORTING fcode sender,
+      on_history_double_click
+        FOR EVENT double_click OF cl_salv_events_table IMPORTING row column sender,
+      on_popup_close
+        FOR EVENT close OF cl_gui_dialogbox_container IMPORTING sender,
 
-      get_current_line  RETURNING VALUE(r_current_line) TYPE type_table_data,
+      add_history_entry IMPORTING i_tabline TYPE type_table_data,
+
       set_filter_defaults,
       set_filter_values IMPORTING i_function TYPE csequence
                                   i_checked  TYPE abap_bool,
@@ -2472,9 +2597,10 @@ CLASS lcl_search_control DEFINITION INHERITING FROM lcl_control.
 
     DATA:
       mo_toolbar_filter TYPE REF TO lcl_toolbar,
-      mo_salv           TYPE REF TO cl_salv_table,
+      mo_salv_output    TYPE REF TO cl_salv_table,
       mt_salv_output    TYPE STANDARD TABLE OF type_table_data,
-      mv_linked_to_app  TYPE abap_bool,
+      mo_salv_history   TYPE REF TO cl_salv_table,
+      mt_history        TYPE ty_history_tab,
       mv_language       TYPE sy-langu.
 ENDCLASS.
 
@@ -2523,6 +2649,8 @@ CLASS lcl_show_table_control DEFINITION INHERITING FROM lcl_control.
                                              i_caption_id TYPE i DEFAULT 10,
       build_view_conditions        IMPORTING i_ddic_view  TYPE REF TO lcl_ddic_view
                                              i_caption_id TYPE i DEFAULT 11,
+      build_transport_infos        IMPORTING i_ddic_table TYPE REF TO lcl_ddic_table
+                                             i_caption_id TYPE i DEFAULT 12,
       build_table_data             IMPORTING i_ddic_table         TYPE REF TO lcl_ddic_table
                                    RETURNING VALUE(r_visible_ids) TYPE type_visible_caption_id,
       build_view_data              IMPORTING i_ddic_view          TYPE REF TO lcl_ddic_view
@@ -2549,6 +2677,8 @@ CLASS lcl_show_table_control DEFINITION INHERITING FROM lcl_control.
         IMPORTING row column sender,
       on_view_joins_click         FOR EVENT link_click OF cl_salv_events_table
         IMPORTING row column sender,
+      on_transport_infos_click    FOR EVENT link_click OF cl_salv_events_table
+        IMPORTING row column sender,
       on_raise_after_salv_function FOR EVENT after_salv_function OF cl_salv_events_table
         IMPORTING e_salv_function sender.
 
@@ -2571,6 +2701,7 @@ CLASS lcl_show_table_control DEFINITION INHERITING FROM lcl_control.
       mo_salv_view_base_tables  TYPE REF TO cl_salv_table,
       mo_salv_view_joins        TYPE REF TO cl_salv_table,
       mo_salv_view_conditions   TYPE REF TO cl_salv_table,
+      mo_salv_transport_infos   TYPE REF TO cl_salv_table,
       mt_header                 TYPE lcl_alv_dynamic_tools=>type_output_simple_tab,
       mt_table_fields           TYPE lcl_ddic_table=>type_field_tab,
       mt_texttable_h            TYPE lcl_alv_dynamic_tools=>type_output_simple_tab,
@@ -2584,7 +2715,8 @@ CLASS lcl_show_table_control DEFINITION INHERITING FROM lcl_control.
       mt_view_fields            TYPE lcl_ddic_view=>type_view_fields,
       mt_view_base_tables       TYPE lcl_ddic_view=>type_base_tables,
       mt_view_joins             TYPE lcl_ddic_view=>type_view_joins,
-      mt_view_conditions        TYPE lcl_ddic_view=>type_view_conditions.
+      mt_view_conditions        TYPE lcl_ddic_view=>type_view_conditions,
+      mt_transport_infos        TYPE lcl_ddic_table=>type_transport_infos.
 ENDCLASS.
 
 CLASS lcl_show_table_control IMPLEMENTATION.
@@ -2637,6 +2769,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
     APPEND VALUE #( caption = 'View Base Tables'(t08)      icon = icon_database_table )        TO r_captions.
     APPEND VALUE #( caption = 'View Joins'(t09)            icon = icon_workflow_join )         TO r_captions.
     APPEND VALUE #( caption = 'View Joins Conditions'(t10) icon = icon_select_with_condition ) TO r_captions.
+    APPEND VALUE #( caption = 'Transport Requests'(t73)    icon = icon_select_with_condition ) TO r_captions.
   ENDMETHOD.
 
   METHOD create_tabstrip.
@@ -2667,7 +2800,10 @@ CLASS lcl_show_table_control IMPLEMENTATION.
     mo_salv_header->get_layout( )->set_default( if_salv_c_bool_sap=>true ).
     mo_salv_header->get_layout( )->set_key( VALUE #( report = sy-repid logical_group = 'HEAD' ) ).
 
-    lcl_alv_dynamic_tools=>set_output_simple_columns( i_columns_table = mo_salv_header->get_columns( ) i_optimize = abap_false ).
+    lcl_alv_dynamic_tools=>set_output_simple_columns(
+      i_columns_table = mo_salv_header->get_columns( )
+      i_optimize      = abap_false ).
+
     lcl_alv_dynamic_tools=>set_salv_defaults( mo_salv_header ).
 
     SET HANDLER on_raise_after_salv_function FOR mo_salv_header->get_event( ).
@@ -2702,7 +2838,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
         WHEN 'ROLLNAME' OR 'DOMNAME'.
           column_table->set_cell_type( if_salv_c_cell_type=>hotspot ).
           column_table->set_color( VALUE lvc_s_colo( col = col_positive int = 0 inv = 0 ) ).
-        WHEN 'CHECKTABLE' OR 'ENTITYTAB'.
+        WHEN 'CHECKTABLE' OR 'ENTITYTAB' OR 'PRECFIELD'.
           column_table->set_cell_type( if_salv_c_cell_type=>hotspot ).
           column_table->set_color( VALUE lvc_s_colo( col = col_total int = 0 inv = 0 ) ).
       ENDCASE.
@@ -3007,7 +3143,9 @@ CLASS lcl_show_table_control IMPLEMENTATION.
     mo_salv_view_header->get_layout( )->set_default( if_salv_c_bool_sap=>true ).
     mo_salv_view_header->get_layout( )->set_key( VALUE #( report = sy-repid logical_group = 'HEAD' ) ).
 
-    lcl_alv_dynamic_tools=>set_output_simple_columns(  mo_salv_view_header->get_columns( ) ).
+    lcl_alv_dynamic_tools=>set_output_simple_columns(
+      i_columns_table = mo_salv_view_header->get_columns( )
+      i_optimize      = abap_false ).
 
     lcl_alv_dynamic_tools=>set_salv_defaults(  mo_salv_view_header ).
 
@@ -3182,6 +3320,47 @@ CLASS lcl_show_table_control IMPLEMENTATION.
     lcl_alv_dynamic_tools=>set_salv_defaults( mo_salv_view_conditions ).
 
     SET HANDLER on_raise_after_salv_function FOR mo_salv_view_conditions->get_event( ).
+
+**********************************************************************
+
+    container = mo_tabstrip->get_container( id = 12 ).
+    TRY.
+        cl_salv_table=>factory(
+          EXPORTING r_container  = container
+          IMPORTING r_salv_table = mo_salv_transport_infos
+          CHANGING  t_table      = mt_transport_infos ).
+      CATCH cx_salv_msg INTO error.
+        message_log->add_exception( i_error = error i_method = 'LCL_SHOW_TABLE_CONTROL->CREATE' ).
+        RETURN.
+    ENDTRY.
+
+    mo_salv_transport_infos->get_display_settings( )->set_list_header( 'Transport Requests'(t73) ).
+    mo_salv_transport_infos->get_columns( )->set_key_fixation( if_salv_c_bool_sap=>true ).
+    mo_salv_transport_infos->get_layout( )->set_save_restriction( if_salv_c_layout=>restrict_none ).
+    mo_salv_transport_infos->get_layout( )->set_default( if_salv_c_bool_sap=>true ).
+    mo_salv_transport_infos->get_layout( )->set_key( VALUE #( report = sy-repid logical_group = 'TR' ) ).
+
+    columns_table = mo_salv_transport_infos->get_columns( ).
+    columns       = columns_table->get( ).
+    LOOP AT columns INTO column.
+      column_table ?= column-r_column.
+
+      IF ( column-columnname = 'OBJ_NAME' OR column-columnname = 'OBJECT' ).
+        column_table->set_key( if_salv_c_bool_sap=>true ).
+      ENDIF.
+
+      IF ( column-columnname = 'TRKORR' ).
+        column_table->set_key( if_salv_c_bool_sap=>true ).
+        column_table->set_cell_type( if_salv_c_cell_type=>hotspot ).
+      ENDIF.
+    ENDLOOP.
+
+    mo_salv_transport_infos->get_columns( )->set_optimize( ).
+
+    lcl_alv_dynamic_tools=>set_salv_defaults( mo_salv_transport_infos ).
+
+    SET HANDLER on_transport_infos_click     FOR mo_salv_transport_infos->get_event( ).
+    SET HANDLER on_raise_after_salv_function FOR mo_salv_transport_infos->get_event( ).
   ENDMETHOD.
 
   METHOD build_header.
@@ -3240,8 +3419,8 @@ CLASS lcl_show_table_control IMPLEMENTATION.
       ENDIF.
     ENDLOOP.
 
-    DATA(table_devclass)  = i_ddic_table->get_devclass( ).
-    IF ( table_devclass-ctext IS INITIAL ).
+    DATA(table_devclass) = i_ddic_table->get_devclass( ).
+    IF ( table_devclass IS NOT INITIAL AND table_devclass-ctext IS INITIAL ).
       table_devclass-ctext = |{ get_language_output( mv_language ) }: | && 'Description is not available'(t13).
     ENDIF.
 
@@ -3297,8 +3476,8 @@ CLASS lcl_show_table_control IMPLEMENTATION.
         <header>-descr = i_ddic_table->get_data_class_text( )-darttext.
       ENDIF.
 
-      DATA(table_devclass)  = lo_texttable->get_devclass( ).
-      IF ( table_devclass-ctext IS INITIAL ).
+      DATA(table_devclass) = lo_texttable->get_devclass( ).
+      IF ( table_devclass IS NOT INITIAL AND table_devclass-ctext IS INITIAL ).
         table_devclass-ctext = |{ get_language_output( mv_language ) }: | && 'Description is not available'(t13).
       ENDIF.
 
@@ -3432,6 +3611,10 @@ CLASS lcl_show_table_control IMPLEMENTATION.
     mt_view_conditions = i_ddic_view->get_conditions( ).
   ENDMETHOD.
 
+  METHOD build_transport_infos.
+    mt_transport_infos = i_ddic_table->get_transport_infos( ).
+  ENDMETHOD.
+
   METHOD build_table_data.
     DATA(header_text) = ||.
 
@@ -3523,6 +3706,21 @@ CLASS lcl_show_table_control IMPLEMENTATION.
 
     mo_salv_searchhelp_fields->get_columns( )->set_optimize( ).
     mo_salv_searchhelp_fields->refresh( ).
+
+**********************************************************************
+
+    build_transport_infos( i_ddic_table = i_ddic_table ).
+    IF ( mt_transport_infos IS NOT INITIAL ).
+      header_text = 'Transport Requests'(t73) && | ({ lines( mt_transport_infos ) })|.
+      mo_salv_transport_infos->get_display_settings( )->set_list_header( CONV #( header_text ) ).
+      mo_tabstrip->set_cell_caption( id = 12 caption = CONV #( header_text ) ).
+
+      APPEND 12 TO r_visible_ids.
+      mo_tabstrip->set_cell_visible( id = 12 visible = abap_true ).
+    ENDIF.
+
+    mo_salv_transport_infos->get_columns( )->set_optimize( ).
+    mo_salv_transport_infos->refresh( ).
   ENDMETHOD.
 
   METHOD build_view_data.
@@ -3598,9 +3796,26 @@ CLASS lcl_show_table_control IMPLEMENTATION.
 
     mo_salv_view_conditions->get_columns( )->set_optimize( ).
     mo_salv_view_conditions->refresh( ).
+
+**********************************************************************
+
+    build_transport_infos( i_ddic_table = CONV #( i_ddic_view ) ).
+    IF ( mt_transport_infos IS NOT INITIAL ).
+      header_text = 'Transport Requests'(t73) && | ({ lines( mt_transport_infos ) })|.
+      mo_salv_transport_infos->get_display_settings( )->set_list_header( CONV #( header_text ) ).
+      mo_tabstrip->set_cell_caption( id = 12 caption = CONV #( header_text ) ).
+
+      APPEND 12 TO r_visible_ids.
+      mo_tabstrip->set_cell_visible( id = 12 visible = abap_true ).
+    ENDIF.
+
+    mo_salv_transport_infos->get_columns( )->set_optimize( ).
+    mo_salv_transport_infos->refresh( ).
   ENDMETHOD.
 
   METHOD clear_data.
+    mo_container->set_visible( abap_false ).
+
     CLEAR:
       mv_tabname,     mv_language,
       mt_header,      mt_table_fields, mt_texttable_h,      mt_checktables,
@@ -3624,8 +3839,6 @@ CLASS lcl_show_table_control IMPLEMENTATION.
     DO lines( get_tabstrip_captions( ) ) TIMES.
       mo_tabstrip->set_cell_visible( id = sy-index visible = abap_false ).
     ENDDO.
-
-    mo_container->set_visible( abap_false ).
   ENDMETHOD.
 
   METHOD is_content_empty.
@@ -3667,7 +3880,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
           i_tabname       = mv_tabname
           i_langu         = mv_language
           i_load_metadata = abap_true ).
-      CATCH cx_sy_ref_is_initial INTO DATA(error).
+      CATCH cx_dynamic_check INTO DATA(error).
         message_log->add_exception( i_error = error i_method = 'LCL_SHOW_TABLE_CONTROL->ON_REFRESH_CONTENT' ).
         RETURN.
     ENDTRY.
@@ -3737,6 +3950,12 @@ CLASS lcl_show_table_control IMPLEMENTATION.
               RAISE EVENT tabname_selected
                 EXPORTING tabname = CONV #( <value> ) language = mv_language.
             ENDIF.
+          WHEN 'PRECFIELD'.
+            ASSIGN COMPONENT column OF STRUCTURE <row_line> TO <value>.
+            IF ( sy-subrc = 0 AND <value> IS NOT INITIAL ).
+              RAISE EVENT tabname_selected
+                EXPORTING tabname = CONV #( <value> ) language = mv_language.
+            ENDIF.
           WHEN OTHERS.
         ENDCASE.
       CATCH cx_sy_itab_line_not_found INTO DATA(error).
@@ -3771,7 +3990,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
           ).
 
           mt_checktable_keys = ddic_table->get_checktable_keys( tabline-checktable ).
-        CATCH cx_sy_ref_is_initial INTO DATA(error).
+        CATCH cx_dynamic_check INTO DATA(error).
           message_log->add_exception( i_error = error i_method = 'LCL_SHOW_TABLE_CONTROL->ON_CHECKTABLE_DOUBLE_CLICK' ).
       ENDTRY.
     ENDIF.
@@ -3807,7 +4026,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
           ).
 
           mt_index_fields = ddic_table->get_index_fields( tabline-indexname ).
-        CATCH cx_sy_ref_is_initial INTO DATA(error).
+        CATCH cx_dynamic_check INTO DATA(error).
           message_log->add_exception( i_error = error i_method = 'LCL_SHOW_TABLE_CONTROL->ON_INDEX_DOUBLE_CLICK' ).
       ENDTRY.
     ENDIF.
@@ -3828,7 +4047,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
           ).
 
           mt_searchhelp_fields = ddic_table->get_search_help_fields( tabline-shlpname ).
-        CATCH cx_sy_ref_is_initial INTO DATA(error).
+        CATCH cx_dynamic_check INTO DATA(error).
           message_log->add_exception( i_error = error i_method = 'LCL_SHOW_TABLE_CONTROL->ON_SEARCHHELP_DOUBLE_CLICK' ).
       ENDTRY.
     ENDIF.
@@ -3899,6 +4118,22 @@ CLASS lcl_show_table_control IMPLEMENTATION.
         ENDCASE.
       CATCH cx_sy_itab_line_not_found INTO DATA(error).
         message_log->add_exception( i_error = error i_method = 'LCL_SHOW_TABLE_CONTROL->ON_VIEW_TABLES_CLICK' ).
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD on_transport_infos_click.
+    TRY.
+        DATA(tableline) = mt_transport_infos[ row ].
+        CASE column.
+          WHEN 'TRKORR'.
+            IF ( tableline-trkorr IS NOT INITIAL ).
+              CALL FUNCTION 'TR_DISPLAY_REQUEST'
+                EXPORTING
+                  i_trkorr = tableline-trkorr.
+            ENDIF.
+        ENDCASE.
+      CATCH cx_sy_itab_line_not_found INTO DATA(error).
+        message_log->add_exception( i_error = error i_method = 'LCL_SHOW_TABLE_CONTROL->ON_TRANSPORT_INFOS_CLICK' ).
     ENDTRY.
   ENDMETHOD.
 
@@ -4068,17 +4303,17 @@ CLASS lcl_ddic_model IMPLEMENTATION.
 
   METHOD select_by_tabname.
     DATA results TYPE type_search_results.
-
     IF ( i_tabname_range IS INITIAL ).
       RETURN.
     ENDIF.
 
     SELECT a~tabname, b~ddlanguage, a~tabclass, b~ddtext, c~devclass
       FROM dd02l AS a LEFT OUTER JOIN dd02t AS b ON a~tabname = b~tabname AND b~ddlanguage = @i_langu
-                      INNER JOIN tadir      AS c ON a~tabname = c~obj_name AND c~pgmid = 'R3TR'
-      WHERE a~tabname  IN @i_tabname_range
-        AND a~as4local  = @lcl_ddic_base=>con_active_state
-        AND ( c~object  = 'TABL' OR c~object = 'VIEW' )
+                      LEFT OUTER JOIN tadir AS c ON a~tabname = c~obj_name
+                        AND c~pgmid = 'R3TR'
+                        AND ( c~object = 'TABL' OR c~object = 'VIEW' )
+      WHERE a~tabname IN @i_tabname_range
+        AND a~as4local = @lcl_ddic_base=>con_active_state
       INTO TABLE @results.
 
     SORT results BY tabname tabclass ddtext DESCENDING.
@@ -4176,27 +4411,29 @@ CLASS lcl_ddic_model IMPLEMENTATION.
         " Search By Table Description
         SELECT a~tabname, b~ddlanguage, a~tabclass, b~ddtext, c~devclass
           FROM dd02l AS a LEFT OUTER JOIN dd02t AS b ON a~tabname = b~tabname AND b~ddlanguage = @i_langu
-                          INNER JOIN tadir      AS c ON a~tabname = c~obj_name AND c~pgmid = 'R3TR'
+                          LEFT OUTER JOIN tadir AS c ON a~tabname = c~obj_name
+                            AND c~pgmid  = 'R3TR'
+                            AND c~object = 'TABL'
           WHERE a~tabname   IN @i_control->mt_tabname_range
             AND b~ddtext    IN @lt_search_text_range
             AND a~tabclass  IN @i_control->mt_tabclass_range
             AND a~contflag  IN @range_contflag
             AND a~clidep    IN @i_control->mt_clidep_range
             AND a~as4local   = @lcl_ddic_base=>con_active_state
-            AND c~object   = 'TABL'
             AND c~devclass  IN @lt_devclass_range
           INTO TABLE @results
           UP TO @up_to_rows ROWS.
       ELSE.
         SELECT a~tabname, b~ddlanguage, a~tabclass, b~ddtext, c~devclass
           FROM dd02l AS a LEFT OUTER JOIN dd02t AS b ON a~tabname = b~tabname AND b~ddlanguage = @i_langu
-                          INNER JOIN tadir      AS c ON a~tabname = c~obj_name AND c~pgmid = 'R3TR'
+                          LEFT OUTER JOIN tadir AS c ON a~tabname = c~obj_name
+                            AND c~pgmid  = 'R3TR'
+                            AND c~object = 'TABL'
           WHERE a~tabname   IN @lt_search_tabname_range
             AND a~tabclass  IN @i_control->mt_tabclass_range
             AND a~contflag  IN @range_contflag
             AND a~clidep    IN @i_control->mt_clidep_range
             AND a~as4local   = @lcl_ddic_base=>con_active_state
-            AND c~object   = 'TABL'
             AND c~devclass  IN @lt_devclass_range
           INTO TABLE @results
           UP TO @up_to_rows ROWS.
@@ -4214,25 +4451,27 @@ CLASS lcl_ddic_model IMPLEMENTATION.
           " Search By Table Description
           SELECT a~tabname, b~ddlanguage, a~tabclass, b~ddtext, c~devclass
             FROM dd02l AS a LEFT OUTER JOIN dd02t AS b ON a~tabname = b~tabname AND b~ddlanguage = @i_langu
-                            INNER JOIN tadir      AS c ON a~tabname = c~obj_name AND c~pgmid = 'R3TR'
+                            LEFT OUTER JOIN tadir AS c ON a~tabname = c~obj_name
+                              AND c~pgmid  = 'R3TR'
+                              AND c~object = 'VIEW'
             WHERE a~tabname   IN @i_control->mt_tabname_range
               AND b~ddtext    IN @lt_search_text_range
               AND a~viewclass IN @i_control->mt_viewclass_range
               AND a~clidep    IN @i_control->mt_clidep_range
               AND a~as4local   = @lcl_ddic_base=>con_active_state
-              AND c~object = 'VIEW'
               AND c~devclass  IN @lt_devclass_range
             APPENDING TABLE @results
             UP TO @up_to_rows ROWS.
         ELSE.
           SELECT a~tabname, b~ddlanguage, a~tabclass, b~ddtext, c~devclass
             FROM dd02l AS a LEFT OUTER JOIN dd02t AS b ON a~tabname = b~tabname AND b~ddlanguage = @i_langu
-                            INNER JOIN tadir      AS c ON a~tabname = c~obj_name AND c~pgmid = 'R3TR'
+                            LEFT OUTER JOIN tadir AS c ON a~tabname = c~obj_name
+                              AND c~pgmid  = 'R3TR'
+                              AND c~object = 'VIEW'
             WHERE a~tabname   IN @lt_search_tabname_range
               AND a~viewclass IN @i_control->mt_viewclass_range
               AND a~clidep    IN @i_control->mt_clidep_range
               AND a~as4local   = @lcl_ddic_base=>con_active_state
-              AND c~object = 'VIEW'
               AND c~devclass  IN @lt_devclass_range
             APPENDING TABLE @results
             UP TO @up_to_rows ROWS.
@@ -4251,8 +4490,7 @@ ENDCLASS.
 CLASS lcl_search_control IMPLEMENTATION.
   METHOD constructor.
     super->constructor( ).
-    mv_language      = i_langu.
-    mv_linked_to_app = abap_false.
+    mv_language = i_langu.
   ENDMETHOD.
 
   METHOD create.
@@ -4472,7 +4710,7 @@ CLASS lcl_search_control IMPLEMENTATION.
     TRY.
         cl_salv_table=>factory(
           EXPORTING r_container  = splitter->get_container( row = 4 column = 1 )
-          IMPORTING r_salv_table = mo_salv
+          IMPORTING r_salv_table = mo_salv_output
           CHANGING  t_table      = mt_salv_output ).
       CATCH cx_salv_msg INTO DATA(error).
         message_log->add_exception( i_error = error i_method = 'LCL_SEARCH_CONTROL->CREATE' ).
@@ -4480,7 +4718,7 @@ CLASS lcl_search_control IMPLEMENTATION.
     ENDTRY.
 
     DATA column_table TYPE REF TO cl_salv_column_table.
-    DATA(columns_table) = mo_salv->get_columns( ).
+    DATA(columns_table) = mo_salv_output->get_columns( ).
     DATA(columns) = columns_table->get( ).
     LOOP AT columns INTO DATA(column).
       column_table ?= column-r_column.
@@ -4488,46 +4726,53 @@ CLASS lcl_search_control IMPLEMENTATION.
 
       column-r_column->set_fixed_header_text( 'S' ).
 
-      IF ( column-columnname = 'TABCLASS' OR column-columnname = 'CURRENT' ).
-        column-r_column->set_visible( if_salv_c_bool_sap=>false ).
-      ENDIF.
-
-      IF ( column-columnname = 'STAT' ).
-        column-r_column->set_long_text( 'Table Status (OK = already read)'(c16) ).
-        column-r_column->set_medium_text( 'Status'(c17) ).
-        column-r_column->set_short_text( 'Status'(c18) ).
-        column-r_column->set_optimized( ).
-        column-r_column->set_alignment( if_salv_c_alignment=>centered ).
-      ENDIF.
-
-      IF ( column-columnname = 'CLASS' ).
-        column-r_column->set_long_text( 'Table Class'(c19) ).
-        column-r_column->set_medium_text( 'Type'(c20) ).
-        column-r_column->set_short_text( 'Type'(c21) ).
-        column-r_column->set_optimized( ).
-        column-r_column->set_alignment( if_salv_c_alignment=>centered ).
-      ENDIF.
+      CASE column-columnname.
+        WHEN 'TABCLASS' OR 'CURRENT'.
+          column-r_column->set_visible( if_salv_c_bool_sap=>false ).
+        WHEN 'FAVORITE'.
+          IF ( lcl_gui_handler=>get_program_variant( ) IS NOT INITIAL ).
+            column-r_column->set_long_text( 'Favorite'(c16) ).
+            column-r_column->set_medium_text( 'Favorite'(c17) ).
+            column-r_column->set_short_text( 'Fav.'(c18) ).
+            column-r_column->set_optimized( ).
+            column-r_column->set_alignment( if_salv_c_alignment=>centered ).
+          ELSE.
+            column-r_column->set_visible( if_salv_c_bool_sap=>false ).
+          ENDIF.
+        WHEN 'STAT'.
+          column-r_column->set_long_text( 'Table Status (OK = already read)'(c22) ).
+          column-r_column->set_medium_text( 'Status'(c23) ).
+          column-r_column->set_short_text( 'Status'(c24) ).
+          column-r_column->set_optimized( ).
+          column-r_column->set_alignment( if_salv_c_alignment=>centered ).
+        WHEN 'CLASS'.
+          column-r_column->set_long_text( 'Table Class'(c19) ).
+          column-r_column->set_medium_text( 'Type'(c20) ).
+          column-r_column->set_short_text( 'Type'(c21) ).
+          column-r_column->set_optimized( ).
+          column-r_column->set_alignment( if_salv_c_alignment=>centered ).
+      ENDCASE.
     ENDLOOP.
 
-    mo_salv->get_display_settings( )->set_striped_pattern( abap_true ).
-    mo_salv->get_display_settings( )->set_no_merging( abap_true ).
-    mo_salv->get_selections( )->set_selection_mode( if_salv_c_selection_mode=>multiple ).
-    mo_salv->get_columns( )->set_optimize( ).
+    mo_salv_output->get_display_settings( )->set_striped_pattern( abap_true ).
+    mo_salv_output->get_display_settings( )->set_no_merging( abap_true ).
+    mo_salv_output->get_selections( )->set_selection_mode( if_salv_c_selection_mode=>multiple ).
+    mo_salv_output->get_columns( )->set_optimize( ).
 
-    mo_salv->get_functions( )->set_filter( ).
-    mo_salv->get_functions( )->set_filter_delete( ).
-    mo_salv->get_functions( )->set_sort_asc( ).
-    mo_salv->get_functions( )->set_sort_desc( ).
+    mo_salv_output->get_functions( )->set_filter( ).
+    mo_salv_output->get_functions( )->set_filter_delete( ).
+    mo_salv_output->get_functions( )->set_sort_asc( ).
+    mo_salv_output->get_functions( )->set_sort_desc( ).
 
     TRY.
         IF ( lcl_gui_handler=>get_program_variant( ) IS NOT INITIAL ).
-          mo_salv->get_functions( )->add_function(
+          mo_salv_output->get_functions( )->add_function(
             name     = con_salv_function-add_to_var
             icon     = |{ icon_insert_favorites }|
             tooltip  = CONV #( 'Add to program variant'(t68) )
             position = if_salv_c_function_position=>left_of_salv_functions ).
 
-          mo_salv->get_functions( )->add_function(
+          mo_salv_output->get_functions( )->add_function(
             name     = con_salv_function-remove_from_var
             icon     = |{ icon_delete_favorites }|
             tooltip  = CONV #( 'Remove from program variant'(t69) )
@@ -4535,7 +4780,7 @@ CLASS lcl_search_control IMPLEMENTATION.
         ENDIF.
 
         IF ( lcl_input_fields=>access_se11->* = abap_true ).
-          mo_salv->get_functions( )->add_function(
+          mo_salv_output->get_functions( )->add_function(
             name     = con_salv_function-se11
             icon     = |{ icon_tools }|
             text     = 'se11'
@@ -4544,7 +4789,7 @@ CLASS lcl_search_control IMPLEMENTATION.
         ENDIF.
 
         IF ( lcl_input_fields=>access_se16->* = abap_true ).
-          mo_salv->get_functions( )->add_function(
+          mo_salv_output->get_functions( )->add_function(
             name     = con_salv_function-se16
             icon     = |{ icon_list }|
             text     = 'se16'
@@ -4555,7 +4800,7 @@ CLASS lcl_search_control IMPLEMENTATION.
         IF ( lcl_input_fields=>access_se16n->* = abap_true
          AND lcl_ddic_model=>check_tcode_exists( CONV #( con_salv_function-se16n ) ) ).
 
-          mo_salv->get_functions( )->add_function(
+          mo_salv_output->get_functions( )->add_function(
             name     = con_salv_function-se16n
             icon     = |{ icon_list }|
             text     = 'se16n'
@@ -4566,7 +4811,7 @@ CLASS lcl_search_control IMPLEMENTATION.
         IF ( lcl_input_fields=>access_se16h->* = abap_true
          AND lcl_ddic_model=>check_tcode_exists( CONV #( con_salv_function-se16h ) ) ).
 
-          mo_salv->get_functions( )->add_function(
+          mo_salv_output->get_functions( )->add_function(
             name     = con_salv_function-se16h
             icon     = |{ icon_list }|
             text     = 'se16h'
@@ -4574,7 +4819,7 @@ CLASS lcl_search_control IMPLEMENTATION.
             position = if_salv_c_function_position=>right_of_salv_functions ).
         ENDIF.
 
-        mo_salv->get_functions( )->add_function(
+        mo_salv_output->get_functions( )->add_function(
           name     = con_salv_function-delete_item
           icon     = |{ icon_delete }|
           tooltip  = CONV #( 'Delete selected items'(t50) )
@@ -4584,30 +4829,38 @@ CLASS lcl_search_control IMPLEMENTATION.
         RETURN.
     ENDTRY.
 
-    SET HANDLER on_salv_double_click  FOR mo_salv->get_event( ).
-    SET HANDLER on_salv_toolbar_click FOR mo_salv->get_event( ).
+    SET HANDLER on_salv_double_click  FOR mo_salv_output->get_event( ).
+    SET HANDLER on_salv_toolbar_click FOR mo_salv_output->get_event( ).
 
-    mo_salv->display( ).
+    mo_salv_output->display( ).
 
     SET HANDLER on_found_tables.
+
+    IF ( lcl_input_fields=>delete_history->* = abap_true ).
+      FREE MEMORY ID 'HISTORY'.
+    ELSE.
+      IMPORT history = mt_history FROM MEMORY ID 'HISTORY'.
+    ENDIF.
 
     cl_gui_container=>set_focus( input ).
   ENDMETHOD.
 
-  METHOD set_linked.
-    mv_linked_to_app = i_linked.
-  ENDMETHOD.
-
   METHOD add_items_to_alv.
+    DATA(added) = abap_false.
+
     LOOP AT i_table_keys ASSIGNING FIELD-SYMBOL(<table_key>).
-      READ TABLE mt_salv_output WITH KEY tabname = <table_key>-tabname ddlanguage = <table_key>-language TRANSPORTING NO FIELDS.
+      READ TABLE mt_salv_output
+        TRANSPORTING NO FIELDS
+        WITH KEY tabname = <table_key>-tabname ddlanguage = <table_key>-language.
       IF ( sy-subrc <> 0 ).
         TRY.
             DATA(ddic_table) = lcl_ddic_table=>create_instance( i_tabname = <table_key>-tabname i_langu = <table_key>-language ).
-          CATCH cx_sy_ref_is_initial INTO DATA(error).
+          CATCH cx_dynamic_check INTO DATA(error).
             message_log->add_exception( i_error = error i_method = 'LCL_SEARCH_CONTROL->ADD_ITEMS_TO_ALV' ).
             CONTINUE.
         ENDTRY.
+
+        added = abap_true.
 
         APPEND INITIAL LINE TO mt_salv_output ASSIGNING FIELD-SYMBOL(<table_data>).
 
@@ -4615,7 +4868,7 @@ CLASS lcl_search_control IMPLEMENTATION.
 
         <table_data>-stat  = icon_led_inactive.
         IF ( <table_data>-ddlanguage IS INITIAL ).
-          <table_data>-ddtext     = |{ get_language_output( mv_language ) }: | && 'Description is not available'(t13).
+          <table_data>-ddtext = |{ get_language_output( mv_language ) }: | && 'Description is not available'(t13).
         ENDIF.
 
         CASE <table_data>-tabclass.
@@ -4628,16 +4881,84 @@ CLASS lcl_search_control IMPLEMENTATION.
           WHEN OTHERS.
             <table_data>-class = icon_list.
         ENDCASE.
+
+        IF ( lcl_gui_handler=>get_program_variant( ) IS NOT INITIAL ).
+          READ TABLE lcl_input_fields=>tabname_range
+            TRANSPORTING NO FIELDS
+            WITH KEY low = <table_key>-tabname.
+          IF ( sy-subrc = 0 ).
+            <table_data>-favorite = icon_system_favorites.
+          ENDIF.
+        ENDIF.
       ENDIF.
     ENDLOOP.
 
-    mo_salv->get_columns( )->set_optimize( ).
-    mo_salv->refresh( ).
+    IF ( added = abap_true ).
+      mo_salv_output->get_columns( )->set_optimize( ).
+      IF ( lines( i_table_keys ) = 1 ).
+        DATA(selected_row) = lines( mt_salv_output ).
+      ELSE.
+        selected_row = 1.
+      ENDIF.
 
-    cl_gui_cfw=>set_new_ok_code( 'DUMMY' ). " triggers PAI
+      mo_salv_output->get_selections( )->set_selected_rows( VALUE #( ( selected_row ) ) ).
+      mo_salv_output->refresh( ).
+
+      cl_gui_cfw=>set_new_ok_code( 'DUMMY' ). " triggers PAI
+    ENDIF.
   ENDMETHOD.
 
-  METHOD get_count_lines.
+  METHOD call_history_popup.
+    IF ( mt_history IS INITIAL OR mo_salv_history IS BOUND ).
+      RETURN.
+    ENDIF.
+
+    DATA(style)    = cl_gui_control=>ws_minimizebox + cl_gui_control=>ws_maximizebox + cl_gui_control=>ws_sysmenu.
+    DATA(screen_x) = lcl_control_metric=>get_screen_x( ).
+    DATA(top)      = 178.
+    DATA(width)    = CONV i( screen_x / '3.5' ).
+    DATA(left)     = screen_x - width - 17.
+    DATA(row_height) = lines( mt_history ) * 30.
+
+    DATA(container) = NEW cl_gui_dialogbox_container(
+      parent  = cl_gui_container=>default_screen
+      caption = 'Objects History across ABAP Sessions'(t72)
+      top     = top
+      left    = left
+      width   = width
+      height  = lcl_control_metric=>get_screen_y( ) - top
+      style   = style
+      metric  = cl_gui_dialogbox_container=>metric_pixel
+      no_autodef_progid_dynnr = abap_true
+    ).
+
+    SET HANDLER on_popup_close FOR container.
+
+    TRY.
+        cl_salv_table=>factory(
+          EXPORTING r_container  = container
+          IMPORTING r_salv_table = mo_salv_history
+          CHANGING  t_table      = mt_history ).
+      CATCH cx_salv_msg INTO DATA(salv_error).
+        message_log->add_exception( i_error = salv_error i_method = 'LCL_SEARCH_CONTROL->CALL_HISTORY_POPUP' ).
+        RETURN.
+    ENDTRY.
+
+    mo_salv_history->get_functions( )->set_all( abap_false ).
+    mo_salv_history->get_display_settings( )->set_striped_pattern( abap_true ).
+    mo_salv_history->get_columns( )->set_optimize( ).
+    mo_salv_history->display( ).
+
+    SET HANDLER on_history_double_click FOR mo_salv_history->get_event( ).
+
+    cl_gui_container=>set_focus( container ).
+  ENDMETHOD.
+
+  METHOD get_history_lines.
+    rv_lines = lines( mt_history ).
+  ENDMETHOD.
+
+  METHOD get_result_lines.
     rv_lines = lines( mt_salv_output ).
   ENDMETHOD.
 
@@ -4760,6 +5081,50 @@ CLASS lcl_search_control IMPLEMENTATION.
     ENDIF.
   ENDMETHOD.
 
+  METHOD on_history_double_click.
+    TRY.
+        DATA(history_line) = mt_history[ row ].
+        add_items_to_alv( VALUE #( ( tabname = history_line-tabname language = history_line-langu ) ) ).
+
+        READ TABLE mt_salv_output INTO DATA(tabline)
+          WITH KEY tabname    = history_line-tabname
+                   ddlanguage = history_line-langu.
+        IF ( sy-subrc = 0 ).
+          DATA(tabix) = sy-tabix.
+
+          IF ( tabline-current = abap_true ).
+            RETURN.
+          ENDIF.
+
+          LOOP AT mt_salv_output ASSIGNING FIELD-SYMBOL(<line>).
+            CLEAR <line>-current.
+
+            IF ( <line> = tabline ).
+              <line>-stat    = icon_checked.
+              <line>-current = abap_true.
+            ENDIF.
+          ENDLOOP.
+
+          add_history_entry( tabline ).
+
+          RAISE EVENT table_selected EXPORTING tabname = tabline-tabname tabclass = tabline-tabclass language = tabline-ddlanguage.
+
+          mo_salv_output->get_selections( )->set_selected_rows( VALUE #( ( tabix ) ) ).
+          mo_salv_output->refresh( ).
+        ENDIF.
+      CATCH cx_sy_itab_line_not_found INTO DATA(error).
+        message_log->add_exception( i_error = error i_method = 'LCL_SEARCH_CONTROL->ON_HISTORY_DOUBLE_CLICK' ).
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD on_popup_close.
+    IF sender IS NOT INITIAL.
+      SET HANDLER on_history_double_click FOR mo_salv_history->get_event( ) ACTIVATION abap_false.
+      CLEAR mo_salv_history.
+      sender->free( ).
+    ENDIF.
+  ENDMETHOD.
+
   METHOD on_found_tables.
     DATA:
       selected_objects TYPE type_table_keys,
@@ -4804,10 +5169,6 @@ CLASS lcl_search_control IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD on_salv_double_click.
-    IF ( mv_linked_to_app = abap_false ).
-      RETURN.
-    ENDIF.
-
     TRY.
         DATA(tabline) = mt_salv_output[ row ].
         IF ( tabline-current = abap_true ).
@@ -4823,9 +5184,11 @@ CLASS lcl_search_control IMPLEMENTATION.
           ENDIF.
         ENDLOOP.
 
-        mo_salv->get_columns( )->set_optimize( ).
-        mo_salv->get_selections( )->set_selected_rows( VALUE #( ( row ) ) ).
-        mo_salv->refresh( ).
+        mo_salv_output->get_columns( )->set_optimize( ).
+        mo_salv_output->get_selections( )->set_selected_rows( VALUE #( ( row ) ) ).
+        mo_salv_output->refresh( ).
+
+        add_history_entry( tabline ).
 
         RAISE EVENT table_selected EXPORTING tabname = tabline-tabname tabclass = tabline-tabclass language = tabline-ddlanguage.
       CATCH cx_sy_itab_line_not_found INTO DATA(error).
@@ -4885,7 +5248,7 @@ CLASS lcl_search_control IMPLEMENTATION.
       ENDIF.
 
       DATA(changed) = abap_false.
-      LOOP AT mo_salv->get_selections( )->get_selected_rows( ) INTO DATA(row).
+      LOOP AT mo_salv_output->get_selections( )->get_selected_rows( ) INTO DATA(row).
         IF ( e_salv_function = con_salv_function-add_to_var ).
           LOOP AT rsparams_tab ASSIGNING FIELD-SYMBOL(<rsparam>)
             WHERE selname = 'SO_TABLE' AND low = mt_salv_output[ row ]-tabname.
@@ -4901,10 +5264,13 @@ CLASS lcl_search_control IMPLEMENTATION.
             <rsparam>-sign    = 'I'.
             <rsparam>-option  = 'EQ'.
             <rsparam>-low     = mt_salv_output[ row ]-tabname.
+
+            mt_salv_output[ row ]-favorite = icon_system_favorites.
           ENDIF.
         ELSE.
           changed = abap_true.
           DELETE rsparams_tab WHERE selname = 'SO_TABLE' AND low = mt_salv_output[ row ]-tabname.
+          CLEAR mt_salv_output[ row ]-favorite.
         ENDIF.
       ENDLOOP.
 
@@ -4934,16 +5300,18 @@ CLASS lcl_search_control IMPLEMENTATION.
             i_method  = 'RS_CHANGE_CREATED_VARIANT'
             i_object  = variant ).
         ENDIF.
+
+        mo_salv_output->refresh( ).
       ENDIF.
     ELSEIF ( e_salv_function = con_salv_function-delete_item ).
-      IF ( lines( mo_salv->get_selections( )->get_selected_columns( ) ) > 0 ).
+      IF ( lines( mo_salv_output->get_selections( )->get_selected_columns( ) ) > 0 ).
         " delete all items by column selections
         CLEAR mt_salv_output.
 
         RAISE EVENT all_items_deleted.
-      ELSEIF ( lines( mo_salv->get_selections( )->get_selected_rows( ) ) > 0 ).
+      ELSEIF ( lines( mo_salv_output->get_selections( )->get_selected_rows( ) ) > 0 ).
         " delete the selected items
-        LOOP AT mo_salv->get_selections( )->get_selected_rows( ) INTO row.
+        LOOP AT mo_salv_output->get_selections( )->get_selected_rows( ) INTO row.
           APPEND VALUE #(
             tabname = mt_salv_output[ row ]-tabname language = mt_salv_output[ row ]-ddlanguage ) TO selected_tables.
 
@@ -4955,11 +5323,11 @@ CLASS lcl_search_control IMPLEMENTATION.
         RAISE EVENT items_deleted EXPORTING selected_items = selected_tables.
       ENDIF.
 
-      mo_salv->refresh( ).
+      mo_salv_output->refresh( ).
     ELSEIF ( e_salv_function = con_salv_function-se11
           OR e_salv_function = con_salv_function-se16 ).
 
-      LOOP AT mo_salv->get_selections( )->get_selected_rows( ) INTO row.
+      LOOP AT mo_salv_output->get_selections( )->get_selected_rows( ) INTO row.
         DATA(ls_first_selected) = mt_salv_output[ row ]. EXIT.
       ENDLOOP.
 
@@ -4996,7 +5364,7 @@ CLASS lcl_search_control IMPLEMENTATION.
     ELSEIF ( e_salv_function = con_salv_function-se16n
           OR e_salv_function = con_salv_function-se16h ).
 
-      LOOP AT mo_salv->get_selections( )->get_selected_rows( ) INTO row.
+      LOOP AT mo_salv_output->get_selections( )->get_selected_rows( ) INTO row.
         ls_first_selected = mt_salv_output[ row ]. EXIT.
       ENDLOOP.
 
@@ -5021,8 +5389,26 @@ CLASS lcl_search_control IMPLEMENTATION.
     ENDIF.
   ENDMETHOD.
 
-  METHOD get_current_line.
-    READ TABLE mt_salv_output INTO r_current_line WITH KEY current = abap_true.
+  METHOD add_history_entry.
+    DELETE mt_history
+      WHERE tabname = i_tabline-tabname
+        AND langu   = i_tabline-ddlanguage.
+
+    APPEND VALUE #(
+      tabname   = i_tabline-tabname
+      tabclass  = i_tabline-tabclass
+      ddtext    = i_tabline-ddtext
+      langu     = i_tabline-ddlanguage
+      opened_at = sy-timlo
+    ) TO mt_history.
+
+    EXPORT history = mt_history TO MEMORY ID 'HISTORY'.
+
+    IF ( mo_salv_history IS BOUND ).
+      mo_salv_history->get_columns( )->set_optimize( ).
+      mo_salv_history->get_selections( )->set_selected_rows( VALUE #( ( lines( mt_history ) ) ) ).
+      mo_salv_history->refresh( ).
+    ENDIF.
   ENDMETHOD.
 
   METHOD set_filter_defaults.
@@ -5174,6 +5560,7 @@ CLASS lcl_table_view_ctrl DEFINITION INHERITING FROM lcl_controller_base FRIENDS
   PUBLIC SECTION.
     EVENTS:
       go_back,
+      call_history,
       output_screen.
 
     METHODS:
@@ -5198,6 +5585,10 @@ CLASS lcl_table_view_ctrl IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD on_at_input.
+    CASE ucomm.
+      WHEN 'FC04'.  " History
+        RAISE EVENT call_history.
+    ENDCASE.
   ENDMETHOD.
 
   METHOD on_at_exit.
@@ -5385,6 +5776,7 @@ CLASS lcl_table_view DEFINITION INHERITING FROM lcl_view_base.
       get_titel                REDEFINITION,
       on_output_screen         FOR EVENT output_screen         OF lcl_table_view_ctrl,
       on_go_back               FOR EVENT go_back               OF lcl_table_view_ctrl,
+      on_call_history          FOR EVENT call_history          OF lcl_table_view_ctrl,
       on_table_selected        FOR EVENT table_selected        OF lcl_search_control IMPORTING tabname tabclass language sender,
       on_items_deleted         FOR EVENT items_deleted         OF lcl_search_control IMPORTING selected_items sender,
       on_all_items_deleted     FOR EVENT all_items_deleted     OF lcl_search_control IMPORTING sender,
@@ -5407,6 +5799,7 @@ CLASS lcl_table_view IMPLEMENTATION.
 
     SET HANDLER on_output_screen FOR ALL INSTANCES.
     SET HANDLER on_go_back       FOR ALL INSTANCES.
+    SET HANDLER on_call_history       FOR ALL INSTANCES.
 
     create_content( ).
 
@@ -5435,12 +5828,8 @@ CLASS lcl_table_view IMPLEMENTATION.
     root_container->set_column_width( id = 1 width = nav ).
     root_container->set_column_width( id = 2 width = main ).
 
-    table_control->set_linked( ).
-
     mo_table_bar_control = NEW lcl_show_table_control( ).
     mo_table_bar_control->create( i_parent = root_container->get_container( row = 1 column = 2 ) ).
-
-    root_container->set_visible( abap_true ).
 
     SET HANDLER on_table_selected        FOR table_control.
     SET HANDLER on_items_deleted         FOR table_control.
@@ -5452,6 +5841,8 @@ CLASS lcl_table_view IMPLEMENTATION.
     IF ( lcl_input_fields=>tabname_range IS NOT INITIAL ).
       lcl_ddic_model=>select_by_tabname( i_tabname_range = lcl_input_fields=>tabname_range i_langu = mv_language ).
     ENDIF.
+
+    root_container->set_visible( abap_true ).
   ENDMETHOD.
 
   METHOD destroy.
@@ -5499,16 +5890,27 @@ CLASS lcl_table_view IMPLEMENTATION.
       tsddic = get_titel( mv_title_additions ).
     ENDIF.
 
+    sscrfields-functxt_04 = VALUE smp_dyntxt(
+      icon_id   = icon_history
+      icon_text = COND #( WHEN table_control->get_history_lines( ) > 0 THEN 'History'(t70) && | ({ table_control->get_history_lines( ) })|
+                          ELSE 'History'(t70) )
+      quickinfo = 'Show Objects History'(t71) ).
+
     sscrfields-functxt_05 = VALUE smp_dyntxt(
       icon_id   = COND #( WHEN message_log->check_type( 'E' ) THEN icon_message_error_small
                           WHEN message_log->check_type( 'W' ) THEN icon_message_warning_small
                           ELSE icon_message_information_small )
-      icon_text = 'Message Log'(t63) && | ({ lines( message_log->get_messages( ) ) })|
+      icon_text = COND #( WHEN lines( message_log->get_messages( ) ) > 0 THEN 'Message Log'(t63) && | ({ lines( message_log->get_messages( ) ) })|
+                          ELSE 'Message Log'(t63) )
       quickinfo = 'Show Message Log'(t64) ).
   ENDMETHOD.
 
   METHOD on_go_back.
     lcl_gui_handler=>reload_start_screen( ).
+  ENDMETHOD.
+
+  METHOD on_call_history.
+    table_control->call_history_popup( ).
   ENDMETHOD.
 
   METHOD on_table_selected.
@@ -5896,14 +6298,16 @@ CLASS lcl_gui_handler IMPLEMENTATION.
     CLEAR:
       sscrfields-functxt_01, sscrfields-functxt_02, sscrfields-functxt_03, sscrfields-functxt_04, sscrfields-functxt_05.
 
+    IF ( sy-slset IS NOT INITIAL ).
+      program_variant = sy-slset.
+    ENDIF.
+
     LOOP AT SCREEN INTO DATA(ls_screen).
       IF ( ls_screen-group1 = 'COM' ).
         ls_screen-input = '0'.
         MODIFY SCREEN FROM ls_screen.
       ENDIF.
     ENDLOOP.
-
-    SET CURSOR FIELD 'P_MAXHIT'.
 
     RAISE EVENT at_output.
   ENDMETHOD.
@@ -5912,7 +6316,6 @@ CLASS lcl_gui_handler IMPLEMENTATION.
     CASE sscrfields-ucomm.
       WHEN 'CRET'.
         lcl_input_fields=>tabname_range = so_table[].
-        program_variant = sy-slset.
 
         create_message_log( ).
         start_app( lcl_gui_handler=>enum_appid-ddic_explorer ).
@@ -5953,6 +6356,8 @@ CLASS lcl_gui_handler IMPLEMENTATION.
     llangu   = 'Default Language'(l09).
     lmaxhit  = 'Maximal No. of Hits'(l10).
     llineh   = 'Line Height for Display'(l38).
+    lcheck   = 'Check Tables automatically'(l41).
+    ldelmem  = 'Delete History List'(l40).
     ltcode   = 'Access to Standard TCodes'(l11).
     lse11    = 'SE11'(l12).
     lse16    = 'SE16'(l13).
@@ -5987,6 +6392,8 @@ CLASS lcl_gui_handler IMPLEMENTATION.
     GET REFERENCE OF p_langu  INTO lcl_input_fields=>language.
     GET REFERENCE OF p_maxhit INTO lcl_input_fields=>max_hits.
     GET REFERENCE OF p_lineh  INTO lcl_input_fields=>line_height.
+    GET REFERENCE OF p_delmem INTO lcl_input_fields=>delete_history.
+    GET REFERENCE OF p_check  INTO lcl_input_fields=>check_tables.
     GET REFERENCE OF p_balobj INTO lcl_input_fields=>bal_object.
     GET REFERENCE OF p_balsub INTO lcl_input_fields=>bal_sub_object.
     GET REFERENCE OF p_balext INTO lcl_input_fields=>bal_ext_text.
@@ -6035,6 +6442,8 @@ CLASS lcl_gui_handler IMPLEMENTATION.
         WITH so_table IN lcl_input_fields=>tabname_range
         WITH p_maxhit  = lcl_input_fields=>max_hits->*
         WITH p_lineh   = lcl_input_fields=>line_height->*
+        WITH p_check   = lcl_input_fields=>check_tables->*
+        WITH p_delmem  = lcl_input_fields=>delete_history->*
         WITH p_balobj  = lcl_input_fields=>bal_object->*
         WITH p_balsub  = lcl_input_fields=>bal_sub_object->*
         WITH p_balext  = lcl_input_fields=>bal_ext_text->*
