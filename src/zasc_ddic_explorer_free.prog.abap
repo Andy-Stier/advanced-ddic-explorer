@@ -2,10 +2,10 @@ REPORT zasc_ddic_explorer_free.
 
 *-----------------------------------------------------------------------*
 * PRODUCT:     Advanced DDIC Explorer Community Edition
-* VERSION:     Community Version, Release V1.0.4
+* VERSION:     Community Version, Release V1.0.5
 * COPYRIGHT:   ©2026. All rights reserved.
 * AUTHOR:      Advanced DDIC Explorer Core Team
-* LAST UPDATE: 2026/07/17
+* LAST UPDATE: 2026/07/20
 *-----------------------------------------------------------------------*
 
 * Contact
@@ -81,8 +81,33 @@ CLASS lcl_gui_handler DEFINITION ABSTRACT.
       app             TYPE REF TO lcl_app.
 ENDCLASS.
 
+CLASS lcl_language_convert DEFINITION ABSTRACT.
+  PUBLIC SECTION.
+    CLASS-METHODS:
+      get_language_input  IMPORTING i_lang_iso TYPE t002-laiso RETURNING VALUE(rv_langu)    TYPE sy-langu,
+      get_language_output IMPORTING i_langu    TYPE sy-langu   RETURNING VALUE(rv_lang_iso) TYPE t002-laiso.
+ENDCLASS.
+
+CLASS lcl_language_convert IMPLEMENTATION.
+  METHOD get_language_input.
+    CALL FUNCTION 'CONVERSION_EXIT_ISOLA_INPUT'
+      EXPORTING
+        input  = i_lang_iso
+      IMPORTING
+        output = rv_langu.
+  ENDMETHOD.
+
+  METHOD get_language_output.
+    CALL FUNCTION 'CONVERSION_EXIT_ISOLA_OUTPUT'
+      EXPORTING
+        input  = i_langu
+      IMPORTING
+        output = rv_lang_iso.
+  ENDMETHOD.
+ENDCLASS.
+
 CLASS lcl_control_metric DEFINITION DEFERRED.
-CLASS lcl_input_fields DEFINITION ABSTRACT FINAL CREATE PRIVATE.
+CLASS lcl_input_fields DEFINITION FINAL CREATE PRIVATE.
   PUBLIC SECTION.
     CLASS-DATA:
       tabname_range      TYPE RANGE OF dd02l-tabname,
@@ -148,7 +173,7 @@ CLASS lcl_control_metric IMPLEMENTATION.
   ENDMETHOD.
 ENDCLASS.
 
-CLASS lcl_message_log DEFINITION FINAL CREATE PUBLIC.
+CLASS lcl_message_log DEFINITION FINAL CREATE PRIVATE.
   PUBLIC SECTION.
     TYPES:
       BEGIN OF type_message,
@@ -165,6 +190,11 @@ CLASS lcl_message_log DEFINITION FINAL CREATE PUBLIC.
       END OF type_msgvar,
       type_swastrtab TYPE STANDARD TABLE OF swastrtab WITH EMPTY KEY.
 
+    CLASS-METHODS:
+      create           IMPORTING i_object          TYPE balobj_d  OPTIONAL
+                                 i_subobject       TYPE balsubobj OPTIONAL
+                                 i_extnumber       TYPE balnrext  OPTIONAL
+                       RETURNING VALUE(r_instance) TYPE REF TO lcl_message_log.
     METHODS:
       constructor      IMPORTING i_object    TYPE balobj_d  OPTIONAL
                                  i_subobject TYPE balsubobj OPTIONAL
@@ -195,9 +225,12 @@ CLASS lcl_message_log DEFINITION FINAL CREATE PUBLIC.
                              RETURNING VALUE(r_msgvar) TYPE type_msgvar.
 
     CLASS-DATA:
-      log      TYPE bal_s_log,
-      handle   TYPE balloghndl,
-      messages TYPE type_messages.
+      singleton TYPE REF TO lcl_message_log.
+
+    DATA:
+      mv_handle   TYPE balloghndl,
+      ms_log      TYPE bal_s_log,
+      mt_messages TYPE type_messages.
 ENDCLASS.
 
 DATA message_log TYPE REF TO lcl_message_log.
@@ -212,23 +245,6 @@ SELECTION-SCREEN END OF BLOCK func.
 
 SELECTION-SCREEN BEGIN OF SCREEN 1001 TITLE tsstart. " Selection Screen (Start)
 SELECTION-SCREEN INCLUDE BLOCKS func.
-
-SELECTION-SCREEN BEGIN OF BLOCK block_appl WITH FRAME TITLE lrunappl.
-SELECTION-SCREEN BEGIN OF LINE.
-PARAMETERS p_ddic RADIOBUTTON GROUP appl DEFAULT 'X' USER-COMMAND appl.
-SELECTION-SCREEN COMMENT (16) lddic FOR FIELD p_ddic.
-PARAMETERS p_impact RADIOBUTTON GROUP appl MODIF ID com.
-SELECTION-SCREEN COMMENT (16) limpact FOR FIELD p_impact.
-PARAMETERS p_export RADIOBUTTON GROUP appl MODIF ID com.
-SELECTION-SCREEN COMMENT (16) lexport FOR FIELD p_export.
-PARAMETERS p_sql RADIOBUTTON GROUP appl MODIF ID com.
-SELECTION-SCREEN COMMENT (13) lsql FOR FIELD p_sql.
-PARAMETERS p_odata RADIOBUTTON GROUP appl MODIF ID com.
-SELECTION-SCREEN COMMENT (16) lodata FOR FIELD p_odata.
-PARAMETERS p_sf RADIOBUTTON GROUP appl MODIF ID com.
-SELECTION-SCREEN COMMENT (23) lsf FOR FIELD p_sf.
-SELECTION-SCREEN END OF LINE.
-SELECTION-SCREEN END OF BLOCK block_appl.
 
 SELECTION-SCREEN BEGIN OF BLOCK block_appl_data WITH FRAME TITLE lappdata.
 SELECTION-SCREEN BEGIN OF LINE.
@@ -252,16 +268,6 @@ PARAMETERS p_lineh TYPE int1 OBLIGATORY DEFAULT 30.
 SELECTION-SCREEN END OF LINE.
 
 SELECTION-SCREEN BEGIN OF LINE.
-SELECTION-SCREEN COMMENT (26) lcheck FOR FIELD p_check.
-PARAMETERS p_check TYPE abap_bool AS CHECKBOX DEFAULT space.
-SELECTION-SCREEN END OF LINE.
-
-SELECTION-SCREEN BEGIN OF LINE.
-SELECTION-SCREEN COMMENT (26) ldelmem FOR FIELD p_delmem.
-PARAMETERS p_delmem TYPE abap_bool AS CHECKBOX DEFAULT space.
-SELECTION-SCREEN END OF LINE.
-
-SELECTION-SCREEN BEGIN OF LINE.
 SELECTION-SCREEN COMMENT (26) ltcode.
 PARAMETERS p_se11 TYPE abap_bool AS CHECKBOX DEFAULT 'X'    USER-COMMAND accesstcode.
 SELECTION-SCREEN COMMENT (10) lse11 FOR FIELD p_se11.
@@ -273,7 +279,15 @@ PARAMETERS p_se16h TYPE abap_bool AS CHECKBOX DEFAULT space USER-COMMAND accesst
 SELECTION-SCREEN COMMENT (10) lse16h FOR FIELD p_se16h.
 SELECTION-SCREEN END OF LINE.
 
-SELECTION-SCREEN SKIP.
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN COMMENT (26) lcheck FOR FIELD p_check.
+PARAMETERS p_check TYPE abap_bool AS CHECKBOX DEFAULT space.
+SELECTION-SCREEN END OF LINE.
+
+SELECTION-SCREEN BEGIN OF LINE.
+SELECTION-SCREEN COMMENT (26) ldelmem FOR FIELD p_delmem.
+PARAMETERS p_delmem TYPE abap_bool AS CHECKBOX DEFAULT space.
+SELECTION-SCREEN END OF LINE.
 
 SELECTION-SCREEN BEGIN OF LINE.
 SELECTION-SCREEN COMMENT 28(10) lbalobj.
@@ -341,8 +355,6 @@ SELECTION-SCREEN BEGIN OF SCREEN 1002 TITLE tsddic. " Screen DDIC Dashboard
 SELECTION-SCREEN INCLUDE BLOCKS func.
 SELECTION-SCREEN END OF SCREEN 1002.
 
-LOAD-OF-PROGRAM.
-
 INITIALIZATION.
   lcl_gui_handler=>on_initialization( ).
 
@@ -356,7 +368,7 @@ AT SELECTION-SCREEN ON p_maxhit.
 
 AT SELECTION-SCREEN ON p_lineh.
   IF ( p_lineh > 42 ).
-    MESSAGE 'Maximal value of "Line Height for Display" is 42!'(m14) TYPE 'E'.
+    MESSAGE 'Maximal value of "Display Line Height" is 42!'(m14) TYPE 'E'.
   ENDIF.
 
 AT SELECTION-SCREEN.
@@ -373,29 +385,46 @@ START-OF-SELECTION.
 **********************************************************************
 
 CLASS lcl_message_log IMPLEMENTATION.
-  METHOD constructor.
-    DATA message_defaults TYPE bal_s_mdef.
+  METHOD create.
+    IF ( singleton IS INITIAL ).
+      singleton = NEW #(
+        i_object    = lcl_input_fields=>bal_object->*
+        i_subobject = lcl_input_fields=>bal_sub_object->*
+        i_extnumber = lcl_input_fields=>bal_ext_text->* ).
+    ELSE.
+      IF ( singleton->mv_handle IS NOT INITIAL ).
+        IF ( singleton->ms_log-extnumber <> i_extnumber
+          OR singleton->ms_log-object    <> i_object
+          OR singleton->ms_log-subobject <> i_subobject ).
 
-    IF ( handle IS NOT INITIAL ).
-      IF ( log-extnumber = i_extnumber AND log-object = i_object AND log-subobject = i_subobject ).
-        RETURN.
+          singleton = NEW #(
+            i_object    = lcl_input_fields=>bal_object->*
+            i_subobject = lcl_input_fields=>bal_sub_object->*
+            i_extnumber = lcl_input_fields=>bal_ext_text->* ).
+        ENDIF.
       ENDIF.
     ENDIF.
 
+    r_instance = singleton.
+  ENDMETHOD.
+
+  METHOD constructor.
+    DATA message_defaults TYPE bal_s_mdef.
+
     IF ( i_object IS NOT INITIAL ).
-      log-extnumber = i_extnumber.
-      log-object    = i_object.
-      log-subobject = i_subobject.
-      log-aluser    = i_uname.
-      log-alprog    = i_repid.
-      log-aldate    = sy-datlo.
-      log-altime    = sy-timlo.
+      ms_log-extnumber = i_extnumber.
+      ms_log-object    = i_object.
+      ms_log-subobject = i_subobject.
+      ms_log-aluser    = i_uname.
+      ms_log-alprog    = i_repid.
+      ms_log-aldate    = sy-datlo.
+      ms_log-altime    = sy-timlo.
 
       CALL FUNCTION 'BAL_LOG_CREATE'
         EXPORTING
-          i_s_log                 = log
+          i_s_log                 = ms_log
         IMPORTING
-          e_log_handle            = handle
+          e_log_handle            = mv_handle
         EXCEPTIONS
           log_header_inconsistent = 1
           OTHERS                  = 2.
@@ -406,7 +435,7 @@ CLASS lcl_message_log IMPLEMENTATION.
         RETURN.
       ENDIF.
 
-      message_defaults-log_handle = handle.
+      message_defaults-log_handle = mv_handle.
       CALL FUNCTION 'BAL_GLB_MSG_DEFAULTS_SET'
         EXPORTING
           i_s_msg_defaults      = message_defaults
@@ -422,11 +451,11 @@ CLASS lcl_message_log IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD get_messages.
-    r_messages = messages.
+    r_messages = mt_messages.
   ENDMETHOD.
 
   METHOD check_type.
-    LOOP AT messages TRANSPORTING NO FIELDS WHERE syst_msg-msgty = i_msgtyp.
+    LOOP AT mt_messages TRANSPORTING NO FIELDS WHERE syst_msg-msgty = i_msgtyp.
       r_exists = abap_true. EXIT.
     ENDLOOP.
   ENDMETHOD.
@@ -441,17 +470,17 @@ CLASS lcl_message_log IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    READ TABLE messages TRANSPORTING NO FIELDS WITH KEY syst_msg = msg.
+    READ TABLE mt_messages TRANSPORTING NO FIELDS WITH KEY syst_msg = msg.
     IF ( sy-subrc = 0 ).
       RETURN.
     ENDIF.
 
-    APPEND VALUE #( syst_msg = msg method = i_method object = i_object ) TO messages.
+    APPEND VALUE #( syst_msg = msg method = i_method object = i_object ) TO mt_messages.
 
-    IF ( handle IS NOT INITIAL ).
+    IF ( mv_handle IS NOT INITIAL ).
       CALL FUNCTION 'BAL_LOG_MSG_ADD'
         EXPORTING
-          i_log_handle     = handle
+          i_log_handle     = mv_handle
           i_s_msg          = msg
         EXCEPTIONS
           log_not_found    = 1
@@ -502,12 +531,12 @@ CLASS lcl_message_log IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD save.
-    IF ( handle IS INITIAL ).
+    IF ( mv_handle IS INITIAL ).
       RETURN.
     ENDIF.
 
     DATA handles TYPE bal_t_logh.
-    APPEND handle TO handles.
+    APPEND mv_handle TO handles.
 
     CALL FUNCTION 'BAL_DB_SAVE'
       EXPORTING
@@ -522,11 +551,11 @@ CLASS lcl_message_log IMPLEMENTATION.
         WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
     ENDIF.
 
-    CLEAR handle.
+    CLEAR mv_handle.
   ENDMETHOD.
 
   METHOD display.
-    IF ( handle IS INITIAL ).
+    IF ( mv_handle IS INITIAL ).
       TYPES:
         BEGIN OF ty_output,
           icon TYPE balimsgty,
@@ -535,7 +564,7 @@ CLASS lcl_message_log IMPLEMENTATION.
         ty_outputs TYPE STANDARD TABLE OF ty_output WITH EMPTY KEY.
 
       DATA output_tab TYPE ty_outputs.
-      LOOP AT messages INTO DATA(message).
+      LOOP AT mt_messages INTO DATA(message).
         APPEND INITIAL LINE TO output_tab ASSIGNING FIELD-SYMBOL(<output>).
         <output>-icon = COND #( WHEN message-syst_msg-msgty = 'E' THEN icon_led_red
                                 WHEN message-syst_msg-msgty = 'W' THEN icon_led_yellow
@@ -566,7 +595,7 @@ CLASS lcl_message_log IMPLEMENTATION.
           e_s_display_profile = display_profile.
 
       display_profile-use_grid          = abap_true.
-      display_profile-disvariant-report = log-alprog.
+      display_profile-disvariant-report = ms_log-alprog.
       display_profile-disvariant-handle = 'LOG'.
 
       CALL FUNCTION 'BAL_DSP_LOG_DISPLAY'
@@ -586,12 +615,12 @@ CLASS lcl_message_log IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD delete_messages.
-    CLEAR messages.
+    CLEAR mt_messages.
 
-    IF ( handle IS NOT INITIAL ).
+    IF ( mv_handle IS NOT INITIAL ).
       CALL FUNCTION 'BAL_LOG_MSG_DELETE_ALL'
         EXPORTING
-          i_log_handle  = handle
+          i_log_handle  = mv_handle
         EXCEPTIONS
           log_not_found = 1
           OTHERS        = 2.
@@ -760,7 +789,9 @@ CLASS lcl_ddic_table DEFINITION INHERITING FROM lcl_ddic_base CREATE PUBLIC.
                                        i_load_metadata    TYPE abap_bool DEFAULT abap_false
                              RETURNING VALUE(ro_instance) TYPE REF TO lcl_ddic_table
                              RAISING   cx_sy_ref_is_initial
-                                       cx_sy_create_data_error.
+                                       cx_sy_create_data_error,
+      read_tabclass          IMPORTING i_tabname         TYPE dd02l-tabname
+                             RETURNING VALUE(r_tabclass) TYPE type_header-tabclass.
     METHODS:
       constructor            IMPORTING i_tabname TYPE dd02l-tabname
                                        i_objtype TYPE type_object_type DEFAULT con_objtype
@@ -1057,13 +1088,19 @@ CLASS lcl_ddic_table IMPLEMENTATION.
   METHOD get_tabclass.
   ENDMETHOD.
 
+  METHOD read_tabclass.
+    SELECT SINGLE tabclass FROM dd02l
+      WHERE tabname  = @i_tabname
+        AND as4local = @con_active_state
+      INTO @r_tabclass.
+  ENDMETHOD.
+
   METHOD create_instance.
     DATA instance TYPE REF TO lcl_ddic_table.
     TRY.
         DATA(ls_instance) = get_instance( i_objname = i_tabname i_objtype = con_objtype i_langu = i_langu ).
       CATCH cx_sy_ref_is_initial.
-        DATA(header) = NEW lcl_ddic_table( i_tabname = i_tabname i_objtype = con_objtype i_langu = i_langu )->get_header( ).
-        CASE header-tabclass.
+        CASE lcl_ddic_table=>read_tabclass( i_tabname ).
           WHEN enum_tabclass-transparent.
             instance = NEW lcl_ddic_dbtable( i_tabname = i_tabname i_objtype = con_objtype i_langu = i_langu ).
           WHEN enum_tabclass-pool.
@@ -1315,6 +1352,16 @@ CLASS lcl_ddic_table IMPLEMENTATION.
     ELSEIF ( m_table_data-header IS NOT INITIAL ).
       read_devclass( ).
     ENDIF.
+
+    IF ( m_table_data-header-ddlanguage IS INITIAL ).
+      message_log->add_message_text(
+        EXPORTING
+          i_text   = |Table { m_tabname }: Description in { read_language_text( i_language = mv_langu i_spras = sy-langu )-sptxt } is not available|
+          i_msgtyp = 'W'
+          i_method = 'DDIF_TABL_GET'
+          i_object = m_tabname
+      ).
+    ENDIF.
   ENDMETHOD.
 
   METHOD read_devclass.
@@ -1404,7 +1451,6 @@ CLASS lcl_ddic_table IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    " Direkter SELECT über die Transporttabellen (JOIN von E071 und E070)
     SELECT e071~obj_name,
            e071~object,
            e070~trkorr,
@@ -1416,6 +1462,7 @@ CLASS lcl_ddic_table IMPLEMENTATION.
       FROM e071
       INNER JOIN e070 ON e070~trkorr = e071~trkorr
       INTO TABLE @m_table_data-transport_infos
+      UP TO 100 ROWS
       WHERE e071~pgmid    = 'R3TR'
         AND e071~object   = @m_table_data-tadir-object
         AND e071~obj_name = @m_table_data-header-tabname.
@@ -2443,8 +2490,9 @@ CLASS lcl_control DEFINITION ABSTRACT.
   PUBLIC SECTION.
     TYPES:
       BEGIN OF type_table_key,
-        tabname  TYPE lcl_ddic_table=>type_header-tabname,
-        language TYPE lcl_ddic_table=>type_header-ddlanguage,
+        tabname    TYPE lcl_ddic_table=>type_header-tabname,
+        tabclass   TYPE lcl_ddic_table=>type_header-tabclass,
+        ddlanguage TYPE lcl_ddic_table=>type_header-ddlanguage,
       END OF type_table_key,
       type_table_keys TYPE STANDARD TABLE OF type_table_key WITH DEFAULT KEY.
 
@@ -2455,11 +2503,6 @@ CLASS lcl_control DEFINITION ABSTRACT.
     CLASS-METHODS:
       update_content IMPORTING i_tabname TYPE tabname i_langu TYPE sy-langu,
       clear_content  IMPORTING i_table_keys TYPE type_table_keys OPTIONAL.
-
-  PROTECTED SECTION.
-    METHODS:
-      get_language_input  FINAL IMPORTING i_lang_iso TYPE t002-laiso RETURNING VALUE(rv_langu) TYPE sy-langu,
-      get_language_output FINAL IMPORTING i_langu    TYPE sy-langu   RETURNING VALUE(rv_lang_iso) TYPE t002-laiso.
 ENDCLASS.
 
 CLASS lcl_control IMPLEMENTATION.
@@ -2469,22 +2512,6 @@ CLASS lcl_control IMPLEMENTATION.
 
   METHOD clear_content.
     RAISE EVENT delete_content EXPORTING table_keys = i_table_keys.
-  ENDMETHOD.
-
-  METHOD get_language_input.
-    CALL FUNCTION 'CONVERSION_EXIT_ISOLA_INPUT'
-      EXPORTING
-        input  = i_lang_iso
-      IMPORTING
-        output = rv_langu.
-  ENDMETHOD.
-
-  METHOD get_language_output.
-    CALL FUNCTION 'CONVERSION_EXIT_ISOLA_OUTPUT'
-      EXPORTING
-        input  = i_langu
-      IMPORTING
-        output = rv_lang_iso.
   ENDMETHOD.
 ENDCLASS.
 
@@ -2565,7 +2592,7 @@ CLASS lcl_search_control DEFINITION INHERITING FROM lcl_control.
         langu     TYPE sy-langu,
         ddtext    TYPE dd02t-ddtext,
       END OF ty_history,
-      ty_history_tab TYPE STANDARD TABLE OF ty_history WITH EMPTY KEY..
+      ty_history_tab TYPE STANDARD TABLE OF ty_history WITH EMPTY KEY.
 
     METHODS:
       on_search
@@ -3368,7 +3395,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
 
     DATA(table_header) = i_ddic_table->get_header( ).
     IF ( table_header-ddtext IS INITIAL ).
-      table_header-ddtext = |{ get_language_output( mv_language ) }: | && 'Description is not available'(t13).
+      table_header-ddtext = |{ lcl_language_convert=>get_language_output( mv_language ) }: | && 'Description is not available'(t13).
     ENDIF.
 
     mt_header = lcl_alv_dynamic_tools=>get_structure_fields_for(
@@ -3421,7 +3448,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
 
     DATA(table_devclass) = i_ddic_table->get_devclass( ).
     IF ( table_devclass IS NOT INITIAL AND table_devclass-ctext IS INITIAL ).
-      table_devclass-ctext = |{ get_language_output( mv_language ) }: | && 'Description is not available'(t13).
+      table_devclass-ctext = |{ lcl_language_convert=>get_language_output( mv_language ) }: | && 'Description is not available'(t13).
     ENDIF.
 
     APPEND VALUE #(
@@ -3436,7 +3463,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
     LOOP AT mt_table_fields ASSIGNING FIELD-SYMBOL(<field>).
       ASSIGN COMPONENT 'DDTEXT' OF STRUCTURE <field> TO FIELD-SYMBOL(<value>).
       IF ( sy-subrc = 0 AND <value> IS INITIAL ).
-        <value> = |{ get_language_output( mv_language ) }: | && 'Description is not available'(t13).
+        <value> = |{ lcl_language_convert=>get_language_output( mv_language ) }: | && 'Description is not available'(t13).
       ENDIF.
     ENDLOOP.
   ENDMETHOD.
@@ -3448,7 +3475,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
     IF ( lo_texttable IS BOUND ).
       DATA(table_header) = lo_texttable->get_header( ).
       IF ( table_header-ddtext IS INITIAL ).
-        table_header-ddtext = |{ get_language_output( mv_language ) }: | && 'Description is not available'(t13).
+        table_header-ddtext = |{ lcl_language_convert=>get_language_output( mv_language ) }: | && 'Description is not available'(t13).
       ENDIF.
 
       mt_texttable_h = lcl_alv_dynamic_tools=>get_structure_fields_for(
@@ -3478,7 +3505,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
 
       DATA(table_devclass) = lo_texttable->get_devclass( ).
       IF ( table_devclass IS NOT INITIAL AND table_devclass-ctext IS INITIAL ).
-        table_devclass-ctext = |{ get_language_output( mv_language ) }: | && 'Description is not available'(t13).
+        table_devclass-ctext = |{ lcl_language_convert=>get_language_output( mv_language ) }: | && 'Description is not available'(t13).
       ENDIF.
 
       APPEND VALUE #(
@@ -3494,7 +3521,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
     IF ( mt_checktables IS NOT INITIAL ).
       LOOP AT mt_checktables ASSIGNING FIELD-SYMBOL(<checktable>).
         IF ( <checktable>-ddtext IS INITIAL ).
-          <checktable>-ddtext = |{ get_language_output( mv_language ) }: | && 'Description is not available'(t13).
+          <checktable>-ddtext = |{ lcl_language_convert=>get_language_output( mv_language ) }: | && 'Description is not available'(t13).
         ENDIF.
       ENDLOOP.
     ENDIF.
@@ -3505,7 +3532,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
     IF ( mt_indices IS NOT INITIAL ).
       LOOP AT mt_indices ASSIGNING FIELD-SYMBOL(<index>).
         IF ( <index>-ddtext IS INITIAL ).
-          <index>-ddtext = |{ get_language_output( mv_language ) }: | && 'Description is not available'(t13).
+          <index>-ddtext = |{ lcl_language_convert=>get_language_output( mv_language ) }: | && 'Description is not available'(t13).
         ENDIF.
       ENDLOOP.
     ENDIF.
@@ -3520,7 +3547,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
 
     DATA(view_header) = i_ddic_view->get_view_header( ).
     IF ( view_header-ddtext IS INITIAL ).
-      view_header-ddtext = |{ get_language_output( mv_language ) }: | && 'Description is not available'(t13).
+      view_header-ddtext = |{ lcl_language_convert=>get_language_output( mv_language ) }: | && 'Description is not available'(t13).
     ENDIF.
 
     mt_view_header = lcl_alv_dynamic_tools=>get_structure_fields_for(
@@ -3577,7 +3604,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
 
     DATA(view_devclass)  = i_ddic_view->get_devclass( ).
     IF ( view_devclass-ctext IS INITIAL ).
-      view_devclass-ctext = |{ get_language_output( mv_language ) }: | && 'Description is not available'(t13).
+      view_devclass-ctext = |{ lcl_language_convert=>get_language_output( mv_language ) }: | && 'Description is not available'(t13).
     ENDIF.
 
     APPEND VALUE #(
@@ -3593,7 +3620,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
       LOOP AT mt_view_fields ASSIGNING FIELD-SYMBOL(<field>).
         ASSIGN COMPONENT 'DDTEXT' OF STRUCTURE <field> TO FIELD-SYMBOL(<value>).
         IF ( sy-subrc = 0 AND <value> IS INITIAL ).
-          <value> = |{ get_language_output( mv_language ) }: | && 'Description is not available'(t13).
+          <value> = |{ lcl_language_convert=>get_language_output( mv_language ) }: | && 'Description is not available'(t13).
         ENDIF.
       ENDLOOP.
     ENDIF.
@@ -3799,7 +3826,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
 
 **********************************************************************
 
-    build_transport_infos( i_ddic_table = CONV #( i_ddic_view ) ).
+    build_transport_infos( i_ddic_table = i_ddic_view ).
     IF ( mt_transport_infos IS NOT INITIAL ).
       header_text = 'Transport Requests'(t73) && | ({ lines( mt_transport_infos ) })|.
       mo_salv_transport_infos->get_display_settings( )->set_list_header( CONV #( header_text ) ).
@@ -3885,12 +3912,17 @@ CLASS lcl_show_table_control IMPLEMENTATION.
         RETURN.
     ENDTRY.
 
-    CASE ddic_table->get_tabclass( ).
-      WHEN ddic_table->enum_tabclass-view.
-        visible_ids = build_view_data( CAST #( ddic_table ) ).
-      WHEN OTHERS.
-        visible_ids = build_table_data( CAST #( ddic_table ) ).
-    ENDCASE.
+    TRY.
+        CASE ddic_table->get_tabclass( ).
+          WHEN ddic_table->enum_tabclass-view.
+            visible_ids = build_view_data( CAST #( ddic_table ) ).
+          WHEN OTHERS.
+            visible_ids = build_table_data( CAST #( ddic_table ) ).
+        ENDCASE.
+      CATCH cx_sy_move_cast_error INTO DATA(cast_error).
+        message_log->add_exception( i_error = error i_method = 'LCL_SHOW_TABLE_CONTROL->ON_REFRESH_CONTENT' ).
+        RETURN.
+    ENDTRY.
 
     IF ( line_exists( visible_ids[ table_line = active_id ] ) ).
       mo_tabstrip->set_active( id = active_id ).
@@ -3905,7 +3937,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD on_delete_content.
-    READ TABLE table_keys WITH KEY tabname = mv_tabname language = mv_language TRANSPORTING NO FIELDS.
+    READ TABLE table_keys WITH KEY tabname = mv_tabname ddlanguage = mv_language TRANSPORTING NO FIELDS.
     IF ( sy-subrc = 0 OR table_keys IS INITIAL ).
       clear_data( ).
     ENDIF.
@@ -4117,7 +4149,7 @@ CLASS lcl_show_table_control IMPLEMENTATION.
             ENDIF.
         ENDCASE.
       CATCH cx_sy_itab_line_not_found INTO DATA(error).
-        message_log->add_exception( i_error = error i_method = 'LCL_SHOW_TABLE_CONTROL->ON_VIEW_TABLES_CLICK' ).
+        message_log->add_exception( i_error = error i_method = 'LCL_SHOW_TABLE_CONTROL->ON_VIEW_JOINS_CLICK' ).
     ENDTRY.
   ENDMETHOD.
 
@@ -4481,7 +4513,9 @@ CLASS lcl_ddic_model IMPLEMENTATION.
 
     SORT results BY tabname tabclass ddtext DESCENDING.
     DELETE ADJACENT DUPLICATES FROM results COMPARING tabname tabclass.
-    DELETE results FROM up_to_rows + 1.
+    IF ( up_to_rows > 0 ).
+      DELETE results FROM up_to_rows + 1.
+    ENDIF.
 
     RAISE EVENT found_tables EXPORTING results = results .
   ENDMETHOD.
@@ -4526,6 +4560,7 @@ CLASS lcl_search_control IMPLEMENTATION.
     ENDDO.
 
 **********************************************************************
+
     DATA(toolbar) = NEW cl_gui_toolbar(
       parent      = splitter->get_container( row = 1 column = 1 )
       display_mode = cl_gui_toolbar=>m_mode_vertical
@@ -4538,7 +4573,7 @@ CLASS lcl_search_control IMPLEMENTATION.
       fcode     = con_fcode-select_language
       icon      = CONV tv_image( icon_previous_value )
       butn_type = cntb_btype_button
-      text      = CONV #( 'DDIC Object Language'(t14) && | { get_language_output( mv_language ) }| )
+      text      = CONV #( 'DDIC Object Language'(t14) && | { lcl_language_convert=>get_language_output( mv_language ) }| )
       quickinfo = 'Language for search objects'(t15) ).
 
     toolbar->add_button(
@@ -4846,29 +4881,31 @@ CLASS lcl_search_control IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD add_items_to_alv.
-    DATA(added) = abap_false.
+    DATA selected_rows TYPE salv_t_row.
 
     LOOP AT i_table_keys ASSIGNING FIELD-SYMBOL(<table_key>).
       READ TABLE mt_salv_output
         TRANSPORTING NO FIELDS
-        WITH KEY tabname = <table_key>-tabname ddlanguage = <table_key>-language.
-      IF ( sy-subrc <> 0 ).
+        WITH KEY tabname = <table_key>-tabname ddlanguage = <table_key>-ddlanguage.
+      IF ( sy-subrc = 0 ).
+        APPEND sy-tabix TO selected_rows.
+      ELSE.
         TRY.
-            DATA(ddic_table) = lcl_ddic_table=>create_instance( i_tabname = <table_key>-tabname i_langu = <table_key>-language ).
+            DATA(ddic_table) = lcl_ddic_table=>create_instance( i_tabname = <table_key>-tabname i_langu = <table_key>-ddlanguage ).
           CATCH cx_dynamic_check INTO DATA(error).
             message_log->add_exception( i_error = error i_method = 'LCL_SEARCH_CONTROL->ADD_ITEMS_TO_ALV' ).
             CONTINUE.
         ENDTRY.
 
-        added = abap_true.
-
         APPEND INITIAL LINE TO mt_salv_output ASSIGNING FIELD-SYMBOL(<table_data>).
+        APPEND sy-tabix TO selected_rows.
 
         MOVE-CORRESPONDING ddic_table->get_header( ) TO <table_data>.
 
-        <table_data>-stat  = icon_led_inactive.
+        <table_data>-stat = icon_led_inactive.
         IF ( <table_data>-ddlanguage IS INITIAL ).
-          <table_data>-ddtext = |{ get_language_output( mv_language ) }: | && 'Description is not available'(t13).
+          <table_data>-ddlanguage = mv_language.
+          <table_data>-ddtext     = |{ lcl_language_convert=>get_language_output( mv_language ) }: | && 'Description is not available'(t13).
         ENDIF.
 
         CASE <table_data>-tabclass.
@@ -4882,7 +4919,7 @@ CLASS lcl_search_control IMPLEMENTATION.
             <table_data>-class = icon_list.
         ENDCASE.
 
-        IF ( lcl_gui_handler=>get_program_variant( ) IS NOT INITIAL ).
+        IF ( lcl_gui_handler=>get_program_variant( ) IS NOT INITIAL AND lcl_input_fields=>language->* = <table_key>-ddlanguage ).
           READ TABLE lcl_input_fields=>tabname_range
             TRANSPORTING NO FIELDS
             WITH KEY low = <table_key>-tabname.
@@ -4893,19 +4930,9 @@ CLASS lcl_search_control IMPLEMENTATION.
       ENDIF.
     ENDLOOP.
 
-    IF ( added = abap_true ).
-      mo_salv_output->get_columns( )->set_optimize( ).
-      IF ( lines( i_table_keys ) = 1 ).
-        DATA(selected_row) = lines( mt_salv_output ).
-      ELSE.
-        selected_row = 1.
-      ENDIF.
-
-      mo_salv_output->get_selections( )->set_selected_rows( VALUE #( ( selected_row ) ) ).
-      mo_salv_output->refresh( ).
-
-      cl_gui_cfw=>set_new_ok_code( 'DUMMY' ). " triggers PAI
-    ENDIF.
+    mo_salv_output->get_columns( )->set_optimize( ).
+    mo_salv_output->get_selections( )->set_selected_rows( selected_rows ).
+    mo_salv_output->refresh( ).
   ENDMETHOD.
 
   METHOD call_history_popup.
@@ -5031,15 +5058,40 @@ CLASS lcl_search_control IMPLEMENTATION.
 
       IF ( return IS NOT INITIAL ).
         DATA(langu_iso) = CONV t002-laiso( return[ 1 ]-fieldval ).
-        mv_language = get_language_input( langu_iso ).
-      ELSE.
-        langu_iso = get_language_output( mv_language ).
-      ENDIF.
+        DATA(langu)     = lcl_language_convert=>get_language_input( langu_iso ).
+        IF ( langu = mv_language ).
+          RETURN.
+        ENDIF.
 
-      sender->set_button_info(
-        fcode     = fcode
-        text      = CONV #( 'DDIC Object Language'(t14) && | { langu_iso }| )
-        quickinfo = 'Language for search objects'(t15) ).
+        mv_language = langu.
+
+        sender->set_button_info(
+          fcode     = fcode
+          text      = CONV #( 'DDIC Object Language'(t14) && | { langu_iso }| )
+          quickinfo = 'Language for search objects'(t15) ).
+
+        IF ( mt_salv_output IS NOT INITIAL ).
+          DATA:
+            ret              TYPE c LENGTH 1,
+            selected_objects TYPE type_table_keys.
+
+          CALL FUNCTION 'POPUP_TO_CONFIRM'
+            EXPORTING
+              titlebar              = 'Read the selected tables in this language?'(t01)
+              text_question         = 'Schould the selected tables be read in this language?'(t02)
+              default_button        = '1'
+              display_cancel_button = abap_false
+            IMPORTING
+              answer                = ret.
+          IF ( ret = '1' ).
+            LOOP AT mt_salv_output ASSIGNING FIELD-SYMBOL(<output>).
+              INSERT VALUE #( tabname = <output>-tabname ddlanguage = mv_language ) INTO TABLE selected_objects.
+            ENDLOOP.
+
+            add_items_to_alv( selected_objects ).
+          ENDIF.
+        ENDIF.
+      ENDIF.
     ELSEIF ( fcode = con_fcode-button_max_hits ).
       DATA:
         fields          TYPE STANDARD TABLE OF sval,
@@ -5084,7 +5136,7 @@ CLASS lcl_search_control IMPLEMENTATION.
   METHOD on_history_double_click.
     TRY.
         DATA(history_line) = mt_history[ row ].
-        add_items_to_alv( VALUE #( ( tabname = history_line-tabname language = history_line-langu ) ) ).
+        add_items_to_alv( VALUE #( ( tabname = history_line-tabname ddlanguage = history_line-langu ) ) ).
 
         READ TABLE mt_salv_output INTO DATA(tabline)
           WITH KEY tabname    = history_line-tabname
@@ -5135,7 +5187,11 @@ CLASS lcl_search_control IMPLEMENTATION.
       MESSAGE 'No data found, check the filter values'(m10) TYPE 'S' DISPLAY LIKE 'W'. RETURN.
     ELSEIF ( lines( results  ) = 1 OR with_popup = abap_false ).
       LOOP AT results ASSIGNING FIELD-SYMBOL(<result>).
-        INSERT VALUE #( tabname = <result>-tabname language = <result>-ddlanguage ) INTO TABLE selected_objects.
+        INSERT VALUE #(
+            tabname    = <result>-tabname
+            ddlanguage = COND #( WHEN <result>-ddlanguage IS NOT INITIAL THEN <result>-ddlanguage
+                                 ELSE mv_language )
+          ) INTO TABLE selected_objects.
       ENDLOOP.
     ELSE.
       CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
@@ -5161,7 +5217,7 @@ CLASS lcl_search_control IMPLEMENTATION.
 
       LOOP AT f4_returns ASSIGNING FIELD-SYMBOL(<f4_result>).
         tabname = <f4_result>-fieldval.
-        INSERT VALUE #( tabname = tabname language = mv_language ) INTO TABLE selected_objects.
+        INSERT VALUE #( tabname = tabname ddlanguage = mv_language ) INTO TABLE selected_objects.
       ENDLOOP.
     ENDIF.
 
@@ -5313,7 +5369,7 @@ CLASS lcl_search_control IMPLEMENTATION.
         " delete the selected items
         LOOP AT mo_salv_output->get_selections( )->get_selected_rows( ) INTO row.
           APPEND VALUE #(
-            tabname = mt_salv_output[ row ]-tabname language = mt_salv_output[ row ]-ddlanguage ) TO selected_tables.
+            tabname = mt_salv_output[ row ]-tabname ddlanguage = mt_salv_output[ row ]-ddlanguage ) TO selected_tables.
 
           mt_salv_output[ row ]-stat = icon_delete.
         ENDLOOP.
@@ -5622,7 +5678,7 @@ CLASS lcl_view_base DEFINITION ABSTRACT FRIENDS lcl_controller_base.
 
     CLASS-DATA:
       root_container TYPE REF TO cl_gui_splitter_container,
-      table_control  TYPE REF TO lcl_search_control.
+      search_control TYPE REF TO lcl_search_control.
 
     METHODS:
       create_content ABSTRACT,
@@ -5631,8 +5687,8 @@ CLASS lcl_view_base DEFINITION ABSTRACT FRIENDS lcl_controller_base.
                               RETURNING VALUE(r_title) TYPE type_screen_title.
 
     DATA:
-      mo_controller TYPE REF TO lcl_controller_base,
-      mv_language   TYPE sy-langu.
+      mo_controller    TYPE REF TO lcl_controller_base,
+      mv_default_langu TYPE sy-langu.
 ENDCLASS.
 
 CLASS lcl_view_base IMPLEMENTATION.
@@ -5648,7 +5704,7 @@ CLASS lcl_view_base IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD constructor.
-    mv_language = i_langu.
+    mv_default_langu = i_langu.
   ENDMETHOD.
 
   METHOD free_root_container.
@@ -5730,7 +5786,7 @@ CLASS lcl_start_view IMPLEMENTATION.
 
   METHOD destroy.
     SET HANDLER on_output_screen FOR ALL INSTANCES ACTIVATION abap_false.
-    SET HANDLER on_go_back       FOR ALL INSTANCES  ACTIVATION abap_false.
+    SET HANDLER on_go_back       FOR ALL INSTANCES ACTIVATION abap_false.
   ENDMETHOD.
 
   METHOD get_titel.
@@ -5810,8 +5866,8 @@ CLASS lcl_table_view IMPLEMENTATION.
     create_root_container( i_dynnr = '1002' i_rows = 1 i_columns = 2 ).
     root_container->set_visible( abap_false ).
 
-    table_control = NEW lcl_search_control( mv_language ).
-    table_control->create( i_parent = root_container->get_container( row = 1 column = 1 ) ).
+    search_control = NEW lcl_search_control( mv_default_langu ).
+    search_control->create( i_parent = root_container->get_container( row = 1 column = 1 ) ).
 
     DATA(width) = lcl_control_metric=>get_screen_x( ).
     IF ( width <= lcl_control_metric=>enum_screen_width-middle ).
@@ -5831,15 +5887,15 @@ CLASS lcl_table_view IMPLEMENTATION.
     mo_table_bar_control = NEW lcl_show_table_control( ).
     mo_table_bar_control->create( i_parent = root_container->get_container( row = 1 column = 2 ) ).
 
-    SET HANDLER on_table_selected        FOR table_control.
-    SET HANDLER on_items_deleted         FOR table_control.
-    SET HANDLER on_all_items_deleted     FOR table_control.
+    SET HANDLER on_table_selected        FOR search_control.
+    SET HANDLER on_items_deleted         FOR search_control.
+    SET HANDLER on_all_items_deleted     FOR search_control.
     SET HANDLER on_data_element_selected FOR ALL INSTANCES.
     SET HANDLER on_domain_selected       FOR ALL INSTANCES.
     SET HANDLER on_tabname_selected      FOR ALL INSTANCES.
 
     IF ( lcl_input_fields=>tabname_range IS NOT INITIAL ).
-      lcl_ddic_model=>select_by_tabname( i_tabname_range = lcl_input_fields=>tabname_range i_langu = mv_language ).
+      lcl_ddic_model=>select_by_tabname( i_tabname_range = lcl_input_fields=>tabname_range i_langu = mv_default_langu ).
     ENDIF.
 
     root_container->set_visible( abap_true ).
@@ -5848,15 +5904,15 @@ CLASS lcl_table_view IMPLEMENTATION.
   METHOD destroy.
     SET HANDLER on_output_screen         FOR ALL INSTANCES ACTIVATION abap_false.
     SET HANDLER on_go_back               FOR ALL INSTANCES ACTIVATION abap_false.
-    SET HANDLER on_table_selected        FOR table_control ACTIVATION abap_false.
-    SET HANDLER on_items_deleted         FOR table_control ACTIVATION abap_false.
-    SET HANDLER on_all_items_deleted     FOR table_control ACTIVATION abap_false.
+    SET HANDLER on_table_selected        FOR search_control ACTIVATION abap_false.
+    SET HANDLER on_items_deleted         FOR search_control ACTIVATION abap_false.
+    SET HANDLER on_all_items_deleted     FOR search_control ACTIVATION abap_false.
     SET HANDLER on_data_element_selected FOR ALL INSTANCES ACTIVATION abap_false.
     SET HANDLER on_domain_selected       FOR ALL INSTANCES ACTIVATION abap_false.
     SET HANDLER on_tabname_selected      FOR ALL INSTANCES ACTIVATION abap_false.
 
     CLEAR:
-      mt_popup_pos, table_control, mo_table_bar_control.
+      mt_popup_pos, search_control, mo_table_bar_control.
 
     DO 2 TIMES.
       root_container->get_container( row = 1 column = sy-index )->free( ).
@@ -5892,7 +5948,7 @@ CLASS lcl_table_view IMPLEMENTATION.
 
     sscrfields-functxt_04 = VALUE smp_dyntxt(
       icon_id   = icon_history
-      icon_text = COND #( WHEN table_control->get_history_lines( ) > 0 THEN 'History'(t70) && | ({ table_control->get_history_lines( ) })|
+      icon_text = COND #( WHEN search_control->get_history_lines( ) > 0 THEN 'History'(t70) && | ({ search_control->get_history_lines( ) })|
                           ELSE 'History'(t70) )
       quickinfo = 'Show Objects History'(t71) ).
 
@@ -5910,13 +5966,11 @@ CLASS lcl_table_view IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD on_call_history.
-    table_control->call_history_popup( ).
+    search_control->call_history_popup( ).
   ENDMETHOD.
 
   METHOD on_table_selected.
-    DATA(lv_langu) = COND sy-langu( WHEN language IS NOT INITIAL THEN language ELSE mv_language ).
-
-    lcl_control=>update_content( i_tabname = tabname i_langu = lv_langu ).
+    lcl_control=>update_content( i_tabname = tabname i_langu = language ).
 
     CASE tabclass.
       WHEN lcl_ddic_table=>enum_tabclass-transparent.
@@ -5933,7 +5987,7 @@ CLASS lcl_table_view IMPLEMENTATION.
         mv_title_additions = 'Append'.
     ENDCASE.
 
-    mv_title_additions = mv_title_additions && | { tabname }|.
+    mv_title_additions = mv_title_additions && | { tabname } ({ lcl_language_convert=>get_language_output( language ) })|.
 
     cl_gui_cfw=>set_new_ok_code( 'DUMMY' ). " triggers PAI
   ENDMETHOD.
@@ -5985,7 +6039,7 @@ CLASS lcl_table_view IMPLEMENTATION.
     ENDTRY.
 
     DATA(data_element_header)  = lcl_alv_dynamic_tools=>get_structure_fields_for(
-      i_language  = mv_language
+      i_language  = language
       i_structure = ddic_data_element->get_header( ) ).
 
     SORT mt_popup_pos BY posx posy.
@@ -6076,7 +6130,7 @@ CLASS lcl_table_view IMPLEMENTATION.
     ENDTRY.
 
     DATA(domain_header)  = lcl_alv_dynamic_tools=>get_structure_fields_for(
-      i_language  = mv_language
+      i_language  = language
       i_structure = ddic_domain->get_header( ) ).
 
     DATA(domain_values)  = ddic_domain->get_values( ).
@@ -6094,7 +6148,7 @@ CLASS lcl_table_view IMPLEMENTATION.
       <popup_pos>-posx = 120.
       <popup_pos>-posy = 120.
     ELSEIF ( <popup_pos>-container IS NOT INITIAL ).
-      " Schift position
+      " Shift position
       DATA(posx) = <popup_pos>-posx.
       DATA(posy) = <popup_pos>-posy.
 
@@ -6182,7 +6236,7 @@ CLASS lcl_table_view IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD on_tabname_selected.
-    table_control->add_items_to_alv( VALUE #( ( tabname = tabname language = language ) ) ).
+    search_control->add_items_to_alv( VALUE #( ( tabname = tabname ddlanguage = language ) ) ).
   ENDMETHOD.
 ENDCLASS.
 
@@ -6198,7 +6252,7 @@ ENDCLASS.
 CLASS lcl_start_app DEFINITION INHERITING FROM lcl_app.
   PUBLIC SECTION.
     METHODS:
-      constructor.
+      constructor IMPORTING i_langu TYPE sy-langu.
 
   PROTECTED SECTION.
     METHODS:
@@ -6208,7 +6262,7 @@ ENDCLASS.
 CLASS lcl_start_app IMPLEMENTATION.
   METHOD constructor.
     super->constructor( ).
-    mo_view = NEW lcl_start_view( p_langu ).
+    mo_view = NEW lcl_start_view( i_langu ).
   ENDMETHOD.
 
   METHOD get_appid.
@@ -6219,7 +6273,7 @@ ENDCLASS.
 CLASS lcl_table_app DEFINITION INHERITING FROM lcl_app.
   PUBLIC SECTION.
     METHODS:
-      constructor.
+      constructor IMPORTING i_langu TYPE sy-langu.
 
   PROTECTED SECTION.
     METHODS:
@@ -6229,7 +6283,7 @@ ENDCLASS.
 CLASS lcl_table_app IMPLEMENTATION.
   METHOD constructor.
     super->constructor( ).
-    mo_view = NEW lcl_table_view( p_langu ).
+    mo_view = NEW lcl_table_view( i_langu ).
   ENDMETHOD.
 
   METHOD get_appid.
@@ -6345,17 +6399,10 @@ CLASS lcl_gui_handler IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD set_labels.
-    lrunappl = 'Application'(l01).
     lappdata = 'Application Data'(l02).
-    lddic    = 'DDIC Dashboard'(l03).
-    limpact  = 'Impact Analysis'(l04).
-    lexport  = 'Documentation'(l05).
-    lsql     = 'SQL Builder'(l06).
-    lodata   = 'OData Metadata'(l07).
-    lsf      = 'SF OData Explorer'(l08).
     llangu   = 'Default Language'(l09).
     lmaxhit  = 'Maximal No. of Hits'(l10).
-    llineh   = 'Line Height for Display'(l38).
+    llineh   = 'Display Line Height'(l38).
     lcheck   = 'Check Tables automatically'(l41).
     ldelmem  = 'Delete History List'(l40).
     ltcode   = 'Access to Standard TCodes'(l11).
@@ -6419,9 +6466,9 @@ CLASS lcl_gui_handler IMPLEMENTATION.
 
   METHOD create_message_log.
     IF ( lcl_input_fields=>bal_object->* IS INITIAL ).
-      message_log = NEW #( ).
+      message_log = lcl_message_log=>create( ).
     ELSE.
-      message_log = NEW #(
+      message_log = lcl_message_log=>create(
         i_object    = lcl_input_fields=>bal_object->*
         i_subobject = lcl_input_fields=>bal_sub_object->*
         i_extnumber = lcl_input_fields=>bal_ext_text->* ).
@@ -6473,9 +6520,9 @@ CLASS lcl_gui_handler IMPLEMENTATION.
 
     CASE i_appid.
       WHEN enum_appid-start.
-        app = NEW lcl_start_app( ).
+        app = NEW lcl_start_app( lcl_input_fields=>language->* ).
       WHEN enum_appid-ddic_explorer.
-        app = NEW lcl_table_app( ).
+        app = NEW lcl_table_app( lcl_input_fields=>language->* ).
       WHEN OTHERS.
         RETURN.
     ENDCASE.
