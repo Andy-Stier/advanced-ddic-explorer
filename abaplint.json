@@ -1,0 +1,23 @@
+{
+    "global": {
+    "files": "/src/**/*.*"
+  },
+    "dependencies": [
+        {
+            "url": "local",
+            "folder": "/deps",
+            "files": "/**/*.*"
+        }
+    ],
+    "syntax": {
+        "version": "v740sp08",
+        "errorNamespace": "^(Z|Y)"
+  },
+    "rules": {
+        "obsolete_statement": true,
+        "check_syntax": true,
+        "parser_error": true,
+        "unknown_types": false,
+        "unused_variables": false
+  }
+}
